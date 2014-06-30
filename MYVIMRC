@@ -1,0 +1,177 @@
+" 选项设置
+" =================================================================================================
+" 缩进-对齐
+" 自动缩进功能，不用每次换行手动对齐
+set autoindent
+" 智能对齐
+set smartindent
+" 支持c/c++的缩进
+set cin
+set tabstop=4
+set expandtab
+" TAB建=4个空格
+set shiftwidth=4
+" 搜索
+" 搜索时不再区分大小写
+set ignorecase
+" 智能搜索，长搜索时有高亮提示
+set incsearch
+" 搜索结果高亮显示
+set hlsearch
+" tags搜索设置
+set tags=tags;
+" 显示
+" 高亮光标所在行
+set cursorline
+" 显示行号
+set nu
+" 设置匹配模式
+set showmatch
+" 显示模式
+set showmode
+" 显示命令
+set showcmd
+" 显示位置
+set ruler
+" 显示21条历史命令
+set history=21
+" 配色方案,$VIMRUNTIME/colors
+colorscheme desert
+set ffs=unix
+" set background=dark,light
+" set listchars=tab:>-,trail:-
+" 开始折叠
+" set foldenable
+" 设置折叠方式
+" set foldmethod=indent
+" 设置折叠区域读宽度
+" set foldcolumn=0
+" 设置折叠层数
+" setlocal foldlevel=1
+" 打开文件是默认不折叠代码
+" set foldlevelstart=99
+" 设置为自动关闭折叠
+" set foldclose=all
+" 用空格键来开关折叠
+" nnoremap <space> @=((foldclosed(line('.')) < 0) ? 'zc' : 'zo')<CR>
+" 自动备份
+" set backup
+" set backupext=.bak
+" set patchmode=.orig
+" 类型与语法
+" 检测文件的类型
+filetype on
+" 语法高亮
+syntax on
+
+
+" 映射
+" =================================================================================================
+" normal 模式下的映射
+nmap - <nop>
+vmap - <nop>
+" map <Up> <nop>
+" map <Down> <nop>
+" map <Left> <nop>
+" map <Right> <nop>
+let mapleader="-"
+nnoremap <leader>ev             :vsplit $MYVIMRC<cr>
+nnoremap <leader>sv             :source $MYVIMRC<cr>
+nnoremap <leader>cf             :call append(line("$"),"\t")<cr>::%s/\t/ /g<cr>::%s/\s\+$//<cr>ggVG=Gdd
+nnoremap <space>                viw
+nnoremap <leader><space>        viW
+nnoremap "                      viw<esc>a"<esc>hbi"<esc>lel
+nnoremap '                      viw<esc>a'<esc>hbi'<esc>lel
+nnoremap <leader>"              viWui"<esc>viW<esc>a"<esc>
+nnoremap <leader>'              viWui'<esc>viW<esc>a'<esc>
+nnoremap <leader>n              :set number!<cr>
+nnoremap <leader>w              :set wrap!<cr>
+nnoremap <leader>l              :set list!<cr>
+nnoremap <leader>tt             :Tlist<cr>
+nnoremap tt                     <c-w>w:q<cr>
+nnoremap <leader>ls             :!grep -n --color "<cword>" "%"<cr>
+nnoremap <leader>ll             :!grep -rn --color "<cword>" "%:h" <cr>
+" insert 模式下的映射
+inoremap <c-d>                  <esc>ddi
+inoremap <c-u>                  <esc>viwUA
+inoremap <silent> jk            <esc>
+" view 模式下的映射
+vnoremap c                      :s#^#//#<cr>:noh<cr>
+vnoremap C                      :s#^//##<cr>:noh<cr>
+vnoremap <c-x>                  :w >>~/Desktop/.tmp<cr>:e ~/Desktop/.tmp<cr>G
+" Command-T
+nnoremap <leader>ff             :CommandT<cr>
+nnoremap ff                     :CommandTBuffer<cr>
+" winmanager
+
+" 缩写
+" =================================================================================================
+iabbrev adn                     and
+iabbrev waht                    what
+iabbrev tehn                    then
+iabbrev clxk                    yangdy@xery3d.com
+iabbrev ---                     <esc>99i-<esc>
+iabbrev ===                     <esc>99i=<esc>
+iabbrev ***                     <esc>99i*<esc>
+iabbrev ###                     <esc>99i#<esc>
+iabbrev ~~~                     <esc>99i~<esc>
+
+
+" 自动命令
+" =================================================================================================
+
+
+" 函数
+" =================================================================================================
+" git commit info template,also can be configed use: git config --global commit.template $HOME/.gitmessage
+function! GitCommit()
+    call  setline(line("."),  "bug#00000 <Headline>")
+    call  setline(line(".")+2,"[bug number  ] 00000")
+    call  setline(line(".")+3,"[root cause  ] <root cause>")
+    call  setline(line(".")+4,"[changes     ] <changes>")
+    call  setline(line(".")+5,"[side effects] none")
+    call  setline(line(".")+6,"[reviewers   ]")
+endfunction
+nnoremap <leader>gc             6o<esc>6k:call GitCommit()<cr>
+
+function! FileHeader()
+    call  setline(line("."),    "\/***************************************************************************************************")
+    call  setline(line(".")+1,  "*   File")
+    call  setline(line(".")+2,  "*       ".expand("%:t"))
+    call  setline(line(".")+3,  "*")
+    call  setline(line(".")+4,  "*   Abstract")
+    call  setline(line(".")+5,  "*       ...")
+    call  setline(line(".")+6,  "*")
+    call  setline(line(".")+7,  "*   Author & date")
+    call  setline(line(".")+8,  "*       Dayong Yang")
+    call  setline(line(".")+9,  "*       ".strftime("%Y-%m-%d"))
+    call  setline(line(".")+10, "***************************************************************************************************\/")
+endfunction
+nnoremap <leader>hh             11o<esc>11k:call FileHeader()<cr>
+function! FunctionHeader()
+    call  setline(line("."),    "\/**")
+    call  setline(line(".")+1,  "*   Function")
+    call  setline(line(".")+2,  "*       ...")
+    call  setline(line(".")+3,  "*   Description")
+    call  setline(line(".")+4,  "*")
+    call  setline(line(".")+5,  "*       Parameter       Meaning")
+    call  setline(line(".")+6,  "*")
+    call  setline(line(".")+7,  "**\/")
+endfunction
+nnoremap <leader>fh             8o<esc>8k:call FunctionHeader()<cr>
+
+" 路径设置
+" =================================================================================================
+" 自动切换工作目录
+" set autochdir
+set path=.
+set path+=~/Desktop/firmwares/Sailfish-MihtyBoardFirmware/firmware/**
+set path+=/usr/src/linux-headers-3.8.0-34/arch/avr32/**
+
+
+" Configs
+"=================================================================================================== 
+set nocompatible
+set backspace=indent,eol,start
+let &termencoding=&encoding
+set fileencodings=gb2312,ucs-bom,gbk,utf-8
