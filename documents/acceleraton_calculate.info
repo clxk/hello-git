@@ -1,0 +1,25 @@
+estimate_acceleration_distance
+            (目标速度^2 - 起始速度^2)/2*加速度 = 加速距离
+###################################################################################################
+               accelerate +a         decelerate -a
+              |<---- d1 ---->|<---------- d2 ---------->|
+              |<------------- d = d1 + d2 ------------->|
+             t=0            t=t1                       t=t1+t2
+            initial_rate   peak_rate                 final_rate
+intersection_distance
+            (目标速度^2 - 起始速度^2 + 2*加速度*移动距离）/4*加速度 = 减速点
+###################################################################################################
+#ifdef JKN_ADVANCE
+final_speed_step_rate
+            sqrt(起始速度^2 + 2*加速度*移动距离) = 结束速度
+#endif
+###################################################################################################
+main@firmware/src/MightyBoard/Motherboard/Main.cc
+    runCommandSlice@firmware/src/MightyBoard/Motherboard/Command.cc
+        handleMovementCommand@firmware/src/MightyBoard/Motherboard/Command.cc
+        retractFilament
+        startHoming
+        platformAccess
+            setTargetNew@firmware/src/MightyBoard/Motherboard/Steppers.cc
+            setTargetNewExt
+                plan_buffer_line@firmware/src/MightyBoard/Motherboard/StepperAccelPlanner.cc

@@ -1,0 +1,255 @@
+PINJ - port J input pins address
+===================================================================================================
+int main() {
+    while (1) {
+        board.runMotherboardSlice();
+    }
+}
+---------------------------------------------------------------------------------------------------
+void Motherboard::runMotherboardSlice() {
+    if ( hasInterfaceBoard ) {
+        interfaceBoard.doInterrupt();
+        if ( interface_update_timeout.hasElapsed() ) {
+            interfaceBoard.doUpdate();
+            interface_update_timeout.start(interfaceBoard.getUpdateRate());
+            interface_updated = true;
+        }
+    }
+}
+---------------------------------------------------------------------------------------------------
+    void doInterrupt() {
+        board->doInterrupt();
+    }
+    void InterfaceBoard::doInterrupt() {
+        buttons.scanButtons();
+    }
+    void ButtonArray::scanButtons() {
+        buttonPress = i;
+    }
+
+    
+    void InterfaceBoard::doUpdate() {
+        buttons.getButton(button);
+        screenStack[screenIndex]->notifyButtonPressed(button);
+        buttons.clearButtonPress();
+    }
+
+
+
+
+int main() {
+    while (1) {
+        board.runMotherboardSlice(){
+            键盘|触摸屏状态扫描
+            读取按下的键值|读取按下的坐标值
+            当前屏幕对 按键|触摸 事件进行响应处理
+            清除按键以及触摸事件
+        }
+    }
+}
+
+===================================================================================================
+class UART {
+private:
+    static UART hostUART;               ///< The controller accepts commands from the host UART
+    #if HAS_SLAVE_UART
+    static UART slaveUART;              ///< The controller can forward commands to the slave UART
+    #endif
+public:
+    static UART& getHostUART() { return hostUART; }
+    #if HAS_SLAVE_UART
+    static UART& getSlaveUART() { return slaveUART; }
+    #endif
+
+private:
+    UART(uint8_t index, communication_mode mode);
+    void init_serial();
+    inline void send_byte(char data);
+    const uint8_t index_;               ///< Hardware UART index
+    const communication_mode mode_;     ///< Communication mode we are speaking
+    volatile bool enabled_;             ///< True if the hardware is currently enabled
+public:
+    InPacket in;                        ///< Input packet
+    OutPacket out;                      ///< Output packet
+    void beginSend();
+    void enable(bool enabled);
+    void reset();
+};
+===================================================================================================
+UART::UART(uint8_t index, communication_mode mode) :
+    index_(index),                      ///初始化硬件UART id
+    mode_(mode),                        ///初始化工作模式
+    enabled_(false) {                   ///使能初始化
+        init_serial();
+    }
+    ---------------------------------------------------------------------------------------------------
+    void UART::init_serial() {
+        if(index_ == 0) {
+            INIT_SERIAL(0);
+        }
+        #if HAS_SLAVE_UART
+        else {
+            INIT_SERIAL(1);
+        }
+        #endif
+    }
+    #define INIT_SERIAL(uart_) \
+    { \
+        UBRR##uart_##H = UBRR##uart_##_VALUE >> 8; \
+        UBRR##uart_##L = UBRR##uart_##_VALUE & 0xff; \
+        \
+        /* set config for uart_ */ \
+        UCSR##uart_##A = UCSRA_VALUE(uart_); \
+        UCSR##uart_##B = _BV(RXEN##uart_) | _BV(TXEN##uart_); \
+        UCSR##uart_##C = _BV(UCSZ##uart_##1)|_BV(UCSZ##uart_##0); \
+    }
+    init_serial(0)  ==>     UBRR0H = UBRR0_VALUE >> 8;
+                            UBRR0L = UBRR0_VALUE & 0xff;                    //选择波特率 
+                            /* set config for uart_ */
+                            UCSR0A = UCSRA_VALUE(0);                        //控制以及状态寄存器A设置
+                            UCSR0B = _BV(RXEN0) | _BV(TXEN0);               //读取以及发送中断使能
+                            UCSR0C = _BV(UCSZ01)|_BV(UCSZ00);               //每次传输一个字节8bit
+    UBRRnL & UBRRnH: USART Baud Rate Registers(波特率寄存器)
+                     #define UBRR0_VALUE 16 // 115200 baud
+                     #define UBRR1_VALUE 51 // 38400 baud
+                     U2Xn = 0,异步正常模式,     BAUD = f/(16*(UBRRn+1))
+                     U2Xn = 1,异步双速率模式,   BAUD = f/(8*(UBRRn+1))
+                     Synchronous Master mode,   BAUD = f/(2*(UBRRn+1))
+    UCSRnA & UCSRnB & UCSRnC,USART MSPIM Control and status Register
+                     UCSRnA:    Bit7-RXCn,USART Receive Complete
+                                Bit6-TXCn,USART Transmit Complete
+                                Bit5-UDREn,USART Data Register Empty
+                                Bit4:0-Reserved Bits in MSPI mode
+                     UCSRnB:    Bit7-RXCIEn,RX Complete Interrupt Enable
+                                Bit6-TXCIEn,TX Complete Interrupt Enable
+                                Bit5-UDRIE,USART Data Register Empty Interrupt Enable
+                                Bit4-RXENn,Reveiver Enable
+                                Bit3-TXENn,Tansmitter Enable
+                                Bit2:0,Reserved Bits in MSPI mode
+                     UCSRnC:    Bit7:6,UMSELn1:0,USART Mode Select
+                                    00,异步 01,同步 10,Reserved 11,MSPIM
+                                Bit5:3,Reserved Bits in MSPI mode
+                                Bit2-UDORDn,Data Order
+                                    1-LSB,0-MSB
+                                Bit1,UCPHAn,时钟相位
+                                Bit0,UCPOLn,时钟极性
+    USART 初始化代码
+                    #define FOSC    1843200 //时钟频率
+                    #define BAUD    9600
+                    #define MYUBRR FOSC/16/（BAUD-1）
+                    void main(void){
+                        ...
+                        USART_Init(MYUBRR);
+                        ...
+                    }
+                    void USART_Init(unsigned int ubrr){
+                        /*set baud rate*/
+                        UBRRH = (unsigned char)(ubrr>>8);
+                        UBRRL = (unsigned char)ubrr;
+                        /*Enable receiver and transmitter*/
+                        UCSRB = (1<<RXEN)|(1<<TXEN);
+                        /*set frame format 8data 2 stop bit*/
+                        UCSRC = (1<<USBS)|(3<<UCSZ0);
+                    }
+    ---------------------------------------------------------------------------------------------------
+UART UART::hostUART(0, RS232);                          //初始化与PC交互的串口
+#if HAS_SLAVE_UART
+UART UART::slaveUART(1, RS485);                         //初始化与子模块交互的串口
+#endif
+
+
+void UART::enable(bool enabled) {
+    enabled_ = enabled;                                 //设置使能标志
+    if (index_ == 0) {
+        if (enabled) { ENABLE_SERIAL_INTERRUPTS(0); }   //打开发送接收完成中断
+        else { DISABLE_SERIAL_INTERRUPTS(0); }          //关闭发送接收完成中断
+    }
+    #if HAS_SLAVE_UART
+    else if (index_ == 1) {
+        if (enabled) { ENABLE_SERIAL_INTERRUPTS(1); }
+        else { DISABLE_SERIAL_INTERRUPTS(1); }
+    }
+    #endif
+    if (mode_ == RS485) {
+        // If this is an RS485 pin, set up the RX and TX enable control lines.
+        TX_Enable.setDirection(true);
+        RX_Enable.setDirection(true);
+        RX_Enable.setValue(false);                      // Active low
+        listen();                                       //Transition to a non-transmitting state. This is only used for RS485 mode.
+        loopback_bytes = 0;
+    }
+}
+// Reset the UART to a listening state.  This is important for
+// RS485-based comms.
+void UART::reset() {
+    if (mode_ == RS485) {
+        loopback_bytes = 0;
+        listen();
+    }
+}
+
+
+
+class Packet {          ==> class InPacket: public Packet {
+}                           }
+                            class OutPacket: public Packet {
+                            }
+
+
+void Packet::reset() {                                          void InPacket::reset() {
+	crc = 0;                                                    	Packet::reset();
+	length = 0;                                                 }
+#ifdef PARANOID                                                 void OutPacket::reset() {
+	for (uint8_t i = 0; i < MAX_PACKET_PAYLOAD; i++) {          	Packet::reset();
+		payload[i] = 0;                                         	send_payload_index = 0;
+                                                                }                            
+	}
+#endif // PARANOID
+	error_code = PacketError::NO_ERROR;
+	state = PS_START;
+}
+
+
+ISR(USART0_RX_vect){                                            //USART0_RXC,USART0 RX Complete Handler
+    UART::getHostUART().in.processByte( UDR0 );                 //数据读取
+}
+
+ISR(USART0_TX_vect) {                                           //USART0_TXC,USART0 TX Complete Handler
+    if (UART::getHostUART().out.isSending()) {
+        UDR0 = UART::getHostUART().out.getNextByteToSend();     //数据发送
+    }
+}
+
+
+void UART::beginSend() --> send_byte --> UDR0|UDR1 = data --> USART0_TX_vect|USART1_TX_vect
+
+
+USART发送器有两个标志位来表示它的状态:  数据寄存器空(UDREn) 发送完成(TXCn),这两个标志都可以用来产生中断.
+UDREn标志表示发送缓冲器是否准备好接收新数据了,当发送缓冲区为空的时候，这个bit被设置为1，当发送缓冲区中
+包含上位被移动到Shit Register的数据时被设置为0.
+当UDRIEn(数据寄存器空中断使能)位(在UCSRnB中)被设置为1时,USART数据寄存器空中断将会被执行，一旦UDREn被设置.
+对UDRn的写入操作将造成UDREn标志被清除.
+当使用中断驱动的数据传输时,数据寄存器空中断处理程序必须:
+    1. 按顺序向UDRn写入新数据用于清除UDREn标志
+    2. 禁止数据寄存器空中断
+否则，一旦中断处理程序执行完毕一个新的中断将会产生.
+发送完成(TXCn)标志位将在整个帧传输完成且发送缓冲区中没有可用新数据的时候被设置为1.
+TXCn标志位在发送完成中断被执行时自动清零.
+
+USART接收器有一个标志用于表示接收器的状态.
+RXCn（接收完成标志)用于表示接收缓冲区中是否存在还没有读取的数据.
+如果接收缓冲区中存在还没有读取的数据，此标志将会被设置为1，否则为0.
+如果接收器被禁止(RXENn = 0)接收缓冲区将被flashed,RXCn位将会被设置为0.
+当接收完成中断使能(RXCIEn)被设置,一旦设置RXCn标志USART接收完成中断将被执行.
+当使用中断驱动的数据接收方式时,接收完成中断处理程序必须按顺序从UDRn中读取数据，
+以便清除RXCn标志,否则，一旦中断处理程序执行完毕一个新的中断将会产生.
+
+
+USART MSPIM Register Description
+===================================================================================================
+UDRn    USART MSPIM I/O Data Register
+UCSRnA  USART MSPIM control and status register nA
+UCSRnB  USART MSPIM control and status register nB
+UCSRnC  USART MSPIM control and status register nC
+SPI总线的数据传输
+    SPI是一个环形总线结构，其时序其实很简单，主要是在SCK的控制下，两个双向移位寄存器进行数据交换.

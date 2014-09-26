@@ -1,0 +1,263 @@
+ReplicatorG/src/replicatorg/machine/MachineInterface.java
+---------------------------------------------------------------------------------------------------
+    public interface MachineInterface {
+        public void connect(String portName);
+        public void disconnect();
+    }
+ReplicatorG/src/replicatorg/machine/Machine.java
+---------------------------------------------------------------------------------------------------
+    public class Machine implements MachineInterface {
+        public enum RequestType {
+            CONNECT, DISCONNECT, DISCONNECT_REMOTE_BUILD, RESET,
+            SIMULATE, BUILD_DIRECT, BUILD_TO_FILE, BUILD_TO_REMOTE_FILE, BUILD_REMOTE,
+            PAUSE, UNPAUSE, STOP_MOTION, STOP_ALL, RUN_COMMAND, SHUTDOWN,
+        }
+        public enum JobTarget {
+            NONE, SIMULATOR, MACHINE, REMOTE_FILE, FILE
+        };
+        
+
+
+        public void connect(String portName) {
+            if (!machineThread.isAlive()) {
+                machineThread = new MachineThread(this, machineNode);
+                machineThread.start();
+            }
+            machineThread.scheduleRequest(new MachineCommand(RequestType.CONNECT, null, portName));
+        }
+
+        synchronized public void disconnect() {
+            machineThread.scheduleRequest(new MachineCommand(RequestType.DISCONNECT, null, null));
+        }
+    }
+ReplicatorG/src/replicatorg/machine/MachineThread.java
+---------------------------------------------------------------------------------------------------
+    class MachineThread extends Thread {
+	    public void run() {
+            while (true) {
+                // First, check if the driver registered any errors
+                // Check for and run any control requests that might be in the queue.
+                while (!pendingQueue.isEmpty()) {
+                    runCommand(pendingQueue.remove());
+                }
+                // Check the status poll machine.
+                // If we are building
+                // If there is nothing to do, sleep.
+                // If we get interrupted, break out of the main loop.
+            }
+        }
+	    void runCommand(MachineCommand command) {
+            switch(command.type) {
+                case CONNECT:
+                    break;
+                case DISCONNECT:
+                    break;
+                case RESET:
+                    break;
+                case BUILD_DIRECT:
+                    break;
+                case SIMULATE:
+                    break;
+                case BUILD_TO_REMOTE_FILE:
+                    break;
+                case BUILD_TO_FILE:
+                    break;
+                case PAUSE:
+                    break;
+                case UNPAUSE:
+                    break;
+                case STOP_MOTION:
+                    break;
+                case STOP_ALL:
+                    break;
+                case RUN_COMMAND:
+                    break;
+                case SHUTDOWN:
+                default:
+            }
+        }
+        public boolean scheduleRequest(MachineCommand request) {
+            pendingQueue.add(request);
+            synchronized(this) { notify(); }
+            return true;
+        }
+    }
+ReplicatorG/src/replicatorg/drivers/UsesSerial.java
+---------------------------------------------------------------------------------------------------
+    public interface UsesSerial {
+        public void openSerial(String portName);
+        public void closeSerial();
+	    public String getPortName();
+	    public char getParity();
+	    public int getRate();
+	    public int getDataBits();
+	    public float getStopBits();
+	    public boolean isConnected();
+	    public boolean isExplicit();
+    }
+ReplicatorG/src/replicatorg/drivers/SerialDriver.java
+---------------------------------------------------------------------------------------------------
+    public class SerialDriver extends DriverBaseImplementation implements UsesSerial {
+    }
+ReplicatorG/src/replicatorg/app/util/serial/Serial.java
+---------------------------------------------------------------------------------------------------
+	newConnection = new Serial(portName, rate, parity, databits, stopbits);
+    串口名+波特率+奇偶校验位+数据位+停止位
+    最常用的“数据帧”格式是（n,8,1），n的意思是无“奇偶校验”，8的意思是数据是8位的，1的意思是1个“停止位”。
+    于是，在这种情况下一个数据帧总共包括10位：1个起始位（低电平，用于同步），8个数据位（这是要传送的信息），
+    以及1个停止位（高电平，用于表示数据帧结束）。
+    public class Serial implements SerialPortEventListener {
+	    private void init(String name, int rate, char parity, int data, float stop) throws SerialException {
+            this.name = name;
+            this.rate = rate;
+            this.parity = SerialPort.PARITY_NONE;
+            this.data = data;
+            this.stop = (int)stop;
+		    CommPortIdentifier portId = findPortIdentifier(name);
+            // Attempt to open the given port
+            try {
+                port = (SerialPort)portId.open("replicatorG", 2000);
+                port.setSerialPortParams(this.rate, this.data, this.stop, this.parity);
+                input = port.getInputStream();
+                output = port.getOutputStream();
+                port.addEventListener(this);
+                port.notifyOnDataAvailable(true);
+            } catch (PortInUseException e) {
+                throw new SerialException(
+                        "Serial port '" + name
+                        + "' already in use.  Try quiting any programs that may be using it.");
+            } catch (Exception e) {
+                throw new SerialException("Error opening serial port '" + name + "'.", e);
+            }
+            portsInUse.add(this);
+
+            connected.set(true);
+    }
+使用JAVA操作串口
+---------------------------------------------------------------------------------------------------
+    import gnu.io.CommPortIdentifier;
+    import gnu.io.PortInUseException;
+    import gnu.io.RXTXVersion;
+    import gnu.io.SerialPort;
+    import gnu.io.SerialPortEvent;
+    import gnu.io.SerialPortEventListener;
+
+MachineBuilder
+===================================================================================================
+    machine/builder/ToRemoteFile.java
+    machine/builder/MachineBuilder.java
+    machine/builder/UsingRemoteFile.java
+    machine/builder/Direct.java
+    machine/builder/ToLocalFile.java
+ReplicatorG/src/replicatorg/machine/MachineThread.java
+===================================================================================================
+	public void run() {
+        while (!pendingQueue.isEmpty()) {
+            runCommand(pendingQueue.remove());
+        }
+    }
+	void runCommand(MachineCommand command) {		
+        case BUILD_DIRECT:
+            machineBuilder = new Direct(driver, simulator, combinedSource);
+    }
+
+
+ReplicatorG/src/replicatorg/drivers/SerialDriver.java
+===================================================================================================
+    public interface UsesSerial
+    public interface Driver
+    public interface DriverQueryInterface
+    public class DriverBaseImplementation implements Driver, DriverQueryInterface
+    public class SerialDriver extends DriverBaseImplementation implements UsesSerial
+
+ReplicatorG/src/replicatorg/app/gcode/GCodeParser.java
+===================================================================================================
+public class GCodeParser {
+	public boolean parse(String cmd, Queue< DriverCommand > commandQueue) {
+        //ReplicatorG/src/replicatorg/app/gcode/GCodeCommand.java
+        将cmd字符串转换为GCodeCommand对象
+        if (driver.isPassthroughDriver()) {
+            commandQueue.add(new replicatorg.drivers.commands.GCodePassthrough(gcode.getCommand()));
+        }else{
+            //将G-Code指令转换为driver-command,并放入数组commandQueue
+            buildGCodes(gcode, commandQueue);
+            buildMCodes(gcode, commandQueue);
+            buildTCodes(gcode, commandQueue);
+        }
+    }
+ReplicatorG/src/replicatorg/machine/builder/Direct.java
+===================================================================================================
+	public void runNext() {
+        if (building) {
+            // Run the command on the machine.
+            while(!driverQueue.isEmpty()) {
+                driverQueue.peek().run(driver);
+                driverQueue.remove();
+            }
+        }
+    }
+    ├── AssessState.java
+    ├── ChangeGearRatio.java
+    ├── CloseClamp.java
+    ├── CloseCollet.java
+    ├── CloseValve.java
+    ├── DataCaptureNote.java
+    ├── Delay.java
+    ├── DisableAxes.java
+    ├── DisableDrives.java
+    ├── DisableFan.java
+    ├── DisableFloodCoolant.java
+    ├── DisableMistCoolant.java
+    ├── DisableMotor.java
+    ├── DisableSpindle.java
+    ├── DisplayMessage.java
+    ├── DriverCommand.java
+    ├── EnableAxes.java
+    ├── EnableDrives.java
+    ├── EnableExtruderMotor.java
+    ├── EnableFan.java
+    ├── EnableFloodCoolant.java
+    ├── EnableMistCoolant.java
+    ├── EnableSpindle.java
+    ├── GCodePassthrough.java
+    ├── GetPosition.java
+    ├── HomeAxes.java
+    ├── Initialize.java
+    ├── InvalidatePosition.java
+    ├── OpenClamp.java
+    ├── OpenCollet.java
+    ├── OpenValve.java
+    ├── OptionalHalt.java
+    ├── PlaySong.java
+    ├── ProgramEnd.java
+    ├── ProgramRewind.java
+    ├── QueuePoint.java
+    ├── ReadTemperature.java
+    ├── RecallHomePositions.java
+    ├── RequestToolChange.java
+    ├── SelectTool.java
+    ├── SendBeep.java
+    ├── SetAccelerationToggle.java
+    ├── SetAxisOffset.java
+    ├── SetBuildPercent.java
+    ├── SetChamberTemperature.java
+    ├── SetCurrentPosition.java
+    ├── SetFeedrate.java
+    ├── SetLedStrip.java
+    ├── SetMotorDirection.java
+    ├── SetMotorSpeedPWM.java
+    ├── SetMotorSpeedRPM.java
+    ├── SetPlatformTemperature.java
+    ├── SetServo.java
+    ├── SetSpindleDirection.java
+    ├── SetSpindleRPM.java
+    ├── SetStepperVoltage.java
+    ├── SetTemperature.java
+    ├── StartDataCapture.java
+    ├── StopDataCapture.java
+    ├── StoreHomePositions.java
+    ├── ToggleAutomatedBuildPlatform.java
+    ├── UnconditionalHalt.java
+    ├── UpdateManualControl.java
+    ├── UserPause.java
+    └── WaitUntilBufferEmpty.java

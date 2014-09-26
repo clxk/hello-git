@@ -1,0 +1,964 @@
+代码结构
+===================================================================================================
+.
+├── Motherboard
+│   ├── avrfix                              AVR定点运算库
+│   │   ├── avrfix.c
+│   │   ├── avrfix_config.h
+│   │   ├── avrfix.h
+│   │   ├── lgpl.txt
+│   │   └── readme.txt
+│   ├── boards
+│   │   ├── mighty_one
+│   │   │   ├── ButtonArray.cc              按键数组(键盘)
+│   │   │   ├── ButtonArray.hh
+│   │   │   ├── Configuration.hh            PIN MAP配置
+│   │   │   ├── Cutoff.cc                   Safety Cutoff
+│   │   │   ├── Cutoff.hh
+│   │   │   ├── ExtruderBoard.cc            Extruder电路板对象抽象
+│   │   │   ├── ExtruderBoard.hh
+│   │   │   ├── RGB_LED.cc                  LED控制单元
+│   │   │   └── RGB_LED.hh
+│   │   └── mighty_two
+│   │       ├── ButtonArray.cc
+│   │       ├── ButtonArray.hh
+│   │       ├── Configuration.hh
+│   │       ├── ExtruderBoard.cc
+│   │       ├── ExtruderBoard.hh
+│   │       ├── RGB_LED.cc
+│   │       ├── RGB_LED.hh
+│   │       ├── ThermocoupleDual.cc         Thermocouple模块，可用于读取温度传感器的温度值
+│   │       ├── ThermocoupleDual.hh
+│   │       ├── ThermocoupleReader.cc       模数转换器(ADS1118)
+│   │       └── ThermocoupleReader.hh
+│   ├── lib_sd                              SD卡库
+│   │   ├── byteordering.c
+│   │   ├── byteordering.h
+│   │   ├── ChangeLog
+│   │   ├── fat.c
+│   │   ├── fat_config.h
+│   │   ├── fat.h
+│   │   ├── partition.c
+│   │   ├── partition_config.h
+│   │   ├── partition.h
+│   │   ├── README.txt
+│   │   ├── sd_crc.c
+│   │   ├── sd_crc.h
+│   │   ├── sd_raw.c
+│   │   ├── sd_raw_config.h
+│   │   ├── sd_raw_err.h
+│   │   ├── sd_raw.h
+│   │   └── sd-reader_config.h
+│   ├── Command.cc                          指令执行对象，可处理来自串口以及SD卡的命令序列
+│   ├── Command.hh
+│   ├── DebugPacketProcessor.cc             识别并处理用于调试的数据包
+│   ├── DebugPacketProcessor.hh
+│   ├── EepromMap.cc                        EEPROM预置参数模块
+│   ├── EepromMap.hh
+│   ├── Errors.hh                           错误码定义
+│   ├── Host.cc                             与宿主计算机或者SD交互的对象
+│   ├── Host.hh
+│   ├── Main.cc                             程序入口以及主循环
+│   ├── Main.hh
+│   ├── Motherboard.cc                      Motherboard对象
+│   ├── Motherboard.hh
+│   ├── Piezo.cc                            声音提示模块
+│   ├── Piezo.hh
+│   ├── Point.cc                            每一个维度上的坐标点对象
+│   ├── Point.hh
+│   ├── SDCard.cc                           SD卡接口
+│   ├── SDCard.hh
+│   ├── SoftI2cManager.cc                   软件I2C模块
+│   ├── SoftI2cManager.hh
+│   ├── StepperAccel.cc                     步进电机子系统
+│   ├── StepperAccel.hh
+│   ├── StepperAccelPlanner.cc              步进电机运动控制:布雷森汉姆直线演算法/运动加速度管理
+│   ├── StepperAccelPlanner.hh
+│   ├── StepperAccelSpeedTableBuild.c       服务于"The Stepper Driver Interrupt"的查找表格
+│   ├── StepperAccelSpeedTable.hh
+│   ├── StepperAxis.cc                      步进电机轴对象
+│   ├── StepperAxis.hh
+│   ├── Steppers.cc                         步进电机对象
+│   ├── Steppers.hh
+│   ├── TWI.cc                              TWI操作
+│   ├── TWI.hh
+│   ├── UtilityScripts.cc
+│   ├── UtilityScripts.hh
+│   └── Version.hh
+└── shared                                  类似共享库的一些东西
+├── locale
+│   └── Menu.FR.hh
+├── AnalogPin.cc
+├── AnalogPin.hh
+├── AvrPort.cc
+├── AvrPort.hh
+├── CircularBuffer.hh
+├── Commands.hh
+├── CoolingFan.cc
+├── CoolingFan.hh
+├── DigiPots.cc
+├── DigiPots.hh
+├── Eeprom.cc
+├── Eeprom.hh
+├── Heater.cc
+├── Heater.hh
+├── HeatingElement.hh
+├── InterfaceBoard.cc
+├── InterfaceBoard.hh
+├── Interface.cc
+├── Interface.hh
+├── LiquidCrystalSerial.cc
+├── LiquidCrystalSerial.hh
+├── Menu.cc
+├── Menu.hh
+├── Menu_locales.hh
+├── Packet.cc
+├── Packet.hh
+├── PID.cc
+├── PID.hh
+├── Pin.cc
+├── Pin.hh
+├── ProtocolDocumentation.hh
+├── PSU.cc
+├── PSU.hh
+├── TemperatureSensor.hh
+├── TemperatureTable.cc
+├── TemperatureTable.hh
+├── Thermistor.cc
+├── Thermistor.hh
+├── Thermocouple.cc
+├── Thermocouple.hh
+├── Timeout.cc
+├── Timeout.hh
+├── Types.hh
+├── UART.cc
+└── UART.hh
+
+
+Motherboard
+    private:
+        static Motherboard motherboard;                             Motherboard句柄
+    public:
+        enum status_states                                          (状态机)
+        static Motherboard& getBoard() { return motherboard; }      获取Motherboard句柄
+        static void heatersOff(bool platform);                      加热器控制
+        static void pauseHeaters(bool pause);                       开启关闭加热器
+        static void interfaceBlinkOn();                             LED闪烁
+        static void interfaceBlinkOff();                            LED常亮
+        ExtruderBoard& getExtruderBoard(uint8_t id) { if(id == 1){ return Extruder_Two;} else  { return Extruder_One;} }
+        #ifdef MODEL_REPLICATOR2
+	    ThermocoupleReader& getThermocoupleReader() { return therm_sensor; }
+        #endif	
+	    void initClocks();                                          时钟初始化
+    private:
+	    Motherboard();                                              构造函数，单例模式
+        Timeout interface_update_timeout;                           屏幕刷新定时器
+        #ifdef MODEL_REPLICATOR2
+        Timeout therm_sensor_timeout;                               温度检测定时器
+        ThermocoupleReader therm_sensor;                            温度传感器读数器
+        #else
+        Cutoff cutoff; //we're not using the safety cutoff, but we need to disable the circuit
+        #endif
+        Timeout extruder_manage_timeout;                            打印头控制定时器
+        Timeout platform_timeout;                                   加热板控制定时器
+	    bool hasInterfaceBoard;                                     是否具有InterfaceBoard电路板
+	    LiquidCrystalSerial lcd;                                    液晶显示屏
+	    MessageScreen messageScreen;                                屏幕显示管理对象
+    public:
+        Timeout user_input_timeout;                                 用户输入定时器
+        MainMenu mainMenu;              ///< Main system menu       主菜单
+        FinishedPrintMenu finishedPrintMenu;                        打印完成菜单
+        InterfaceBoard interfaceBoard;                              interfaceBoard对象
+        Thermistor platform_thermistor;                             加热板热电偶对象
+        Heater platform_heater;                                     加热板加热器
+        bool using_platform;                                        
+        ExtruderBoard Extruder_One;                                 打印头1
+        ExtruderBoard Extruder_Two;                                 打印头2
+        #ifdef PSTOP_SUPPORT
+        uint8_t pstop_enabled;
+        #endif
+        ButtonArray buttonArray;                                    键盘对象
+        BuildPlatformHeatingElement platform_element;               加热参数控制?
+        bool buttonWait;
+        bool reset_request;
+        uint8_t heatShutdown;  // set if safety cutoff is triggered
+        HeaterFailMode heatFailMode;        
+        void setupAccelStepperTimer();                              步进电机加速度控制时钟
+	    void reset(bool hard_reset);                                复位
+	    void init();                                                初始化
+	    void runMotherboardSlice();                                 主板时间片：刷新屏幕显示
+                                                                                加热板温度控制
+                                                                                按钮扫描
+                                                                                条件判断是否需要关闭加热器并警告用户
+                                                                                响应HeatShutDown
+                                                                                温度控制与扫描
+        const int getStepperCount() const { return STEPPER_COUNT; } 主板上的步进电机数量
+	    micros_t getCurrentMicros();                                时间计数器
+        #if defined(HONOR_DEBUG_PACKETS) && (HONOR_DEBUG_PACKETS == 1)
+        void indicateError(int errorCode);
+        uint8_t getCurrentError();	
+        #endif
+	    void interfaceBlink(uint8_t on_time, uint8_t off_time);     Interface上的LED灯闪烁控制
+	    void doStepperInterrupt();                                  步进电机中断服务程序
+        bool isUsingPlatform() { return using_platform; }           是否使用加热板
+        void setUsingPlatform(bool is_using);                       设置是否使用加热板
+        void setExtra(bool on);
+        Heater& getPlatformHeater() { return platform_heater; } 
+        InterfaceBoard& getInterfaceBoard() { return interfaceBoard; }	
+        MessageScreen* getMessageScreen() { return &messageScreen; }
+        void resetUserInputTimeout();
+        void startButtonWait();
+        void heaterFail(HeaterFailMode mode, uint8_t slave_id);
+        void errorResponse(const prog_uchar *msg, bool reset = false, bool incomplete = false);
+        void errorResponse(const prog_uchar *msg1, const prog_uchar *msg2, bool reset = false, bool incomplete = false);
+	    void HeatingAlerts();
+                                                                    
+                                                                    
+        Motherboard::motherboard
+                     ExtruderBoard  --  Extruder_One|Extruder_Two
+                     interfaceBoard
+
+                     therm_sensor
+                     lcd
+                     messageScreen
+
+                     mainMenu
+                     finishedPrintMenu
+                     platform_thermistor
+                     platform_heater
+                     buttonArray
+                     platform_element
+                                                                    
+
+
+Sailfish-MightyBoardFirmware/firmware/src/MightyBoard/Motherboard/Main.cc
+===================================================================================================
+int main() {
+#ifdef ERASE_EEPROM_ON_EVERY_BOOT                                           //每次启动擦除EEPROM中的预设参数
+    eeprom::erase();
+    return 0;
+#endif
+
+    Motherboard& board = Motherboard::getBoard();                           //获取Motherboard句柄
+#ifdef REVG                                                                 //Interface电源引脚配置
+    INTERFACE_POWER.setDirection(true);
+    INTERFACE_POWER.setValue(false);
+#endif
+    board.init();                                                           //主板初始化
+                                                                                -   I2C模块初始化
+                                                                                -   InterfaceBoard检测
+                                                                                -   时钟初始化
+                                                                                -   DEBUG_PINx引脚配置
+
+    reset(true);                                                            //复位
+                                                                                -   清除watchdog时钟并重新初使能
+                                                                                -   sdcard::reset();
+                                                                                -   Piezo::reset();
+                                                                                -   utility::reset();
+                                                                                -   command::reset();
+                                                                                #ifndef ERASE_EEPROM_ON_EVERY_BOOT
+                                                                                -   eeprom::init();
+                                                                                #endif
+                                                                                -   steppers::init();
+                                                                                -   steppers::abort();
+                                                                                -   steppers::reset();
+                                                                                -   board.reset(hard_reset);
+    sei();                                                                  //打开全局中断使能
+    while (1) {
+        host::runHostSlice();                                               //同宿主计算机交互的线程(时间片)
+        command::runCommandSlice();                                         //G-Code命令执行线程(时间片)
+        board.runMotherboardSlice();                                        //主板控制线程(时间片) - 屏幕刷新|温度控制|键盘扫描|...
+        steppers::runSteppersSlice();                                       //stepper slice
+        #if defined(STACK_PAINT) && defined(DEBUG_SRAM_MONITOR)             //Alert if SRAM/stack has been corrupted by running out of SRAM
+        stackAlertCounter ++;
+        if ( stackAlertCounter >= 5000 ) {
+            if (( ! stackAlertLockout ) && ( StackCount() == 0 )) {
+                stackAlertLockout = true;
+                Piezo::errorTone(6);
+            }
+            stackAlertCounter = 0;
+        }
+        #endif
+        Piezo::runPiezoSlice();                                             // Piezo slice
+        wdt_reset();                                                        // reset the watch dog timer
+    }
+    return 0;
+}
+
+
+
+
+
+AVR中断
+===================================================================================================
+定时器中断
+    TCNTx           --  定时器计数寄存器,设定定时开始工作时的初始计数值，之后一直累加到溢出,产生溢出中断.
+    OCRx            --  输出比较寄存器,设定一个比较设定值，当TCNTx==OCRx时,如果开启比较匹配中断功能，那么产生比较中断.
+    TIMSK           --  定时器中断屏蔽寄存器
+    TIFR            --  定时器中断标志寄存器
+    TCCRx           --  定时器控制寄存器
+    以8bit的计时器为例: TV: 想要设定的定时时间(单位us),F: 晶振频率(MHz),N:分频因子
+                        TCNTx=256-(TV*F)/N
+
+void Motherboard::initClocks():
+    #ifdef JKN_ADVANCE
+    TCCR2A = 0x02;	                // CTC
+    TCCR2B = 0x04;	                // prescaler at 1/64,64分频
+    OCR2A  = 25;	                // Generate interrupts 16MHz / 64 / 25 = 10KHz,利用比较中断产生10KHz的信号.
+    TIMSK2 = 0x02;                  // turn on OCR2A match interrupt,使能输出比较中断位.
+    #endif
+
+    STEPPER_TCCRnA = 0x00;
+    STEPPER_TCCRnB = 0x0A;          //8分频,2MHz
+    STEPPER_TCCRnC = 0x00;
+    STEPPER_OCRnA  = 0x2000;        //1KHz
+    STEPPER_TIMSKn = 0x02;          // turn on OCR3A match interrupt  [OCR5A for Rep 2]
+
+    #ifdef MODEL_REPLICATOR2
+	// reset and configure timer 3, the Extruders timer
+	// Mode: Fast PWM with TOP=0xFF (8bit) (WGM3:0 = 0101), cycle freq= 976 Hz
+	// Prescaler: 1/64 (250 KHz)
+	TCCR3A = 0b00000001;
+	TCCR3B = 0b00001011;            // set to PWM mode,WGM3[3:0]=0101,64分频,250KHz
+	OCR3A  = 0;
+	OCR3C  = 0;
+	TIMSK3 = 0b00000000;            // no interrupts needed
+    #else
+	// reset and configure timer 1, the Extruder Two PWM timer
+	// Mode: Fast PWM with TOP=0xFF (8bit) (WGM3:0 = 0101), cycle freq= 976 Hz
+	// Prescaler: 1/64 (250 KHz)
+	// No interrupt, PWM controlled by ExtruderBoard
+	TCCR1A = 0b00000001;
+	TCCR1B = 0b00001011;
+	OCR1A  = 0x00;
+	OCR1B  = 0x00;
+	TIMSK1 = 0x00;	                //No interrupts
+
+	// reset and configure timer 4, the Extruder One PWM timer
+	// Mode: Fast PWM with TOP=0xFF (8bit) (WGM3:0 = 0101), cycle freq= 976 Hz
+	// Prescaler: 1/64 (250 KHz)
+	// No interrupt, PWM controlled by ExtruderBoard
+	TCCR4A = 0b00000001;
+	TCCR4B = 0b00001011;
+	TCCR4C = 0x00;
+	OCR4A  = 0x00;
+	OCR4B  = 0x00;
+	TIMSK4 = 0x00;	                //No interrupts
+    #endif
+
+	TCCR5A = 0x00;                  // WGM51:WGM50 00
+	TCCR5B = 0x0B;                  // WGM53:WGM52 10 (CTC) CS52:CS50 011 (/64) => CTC, 250 KHz
+	TCCR5C = 0x00;
+	OCR5A  =   25;                  // 250KHz / 25 => 10 KHz
+	TIMSK5 = 0x02;                  // | ( 1 << OCIE5A)  -> turn on OCR5A match interrupt
+
+    普通模式    --  WGM1=0
+    CTC模式     --  WGM1=4，12(比较匹配时清零定时器模式)
+                    WGM1=4时，最大值由OCR1A设定，TOP时产生OCF1A比较匹配中断
+                    WGM1=12时,最大值由ICF1设定，TOP时产生ICF1输入捕捉中断
+    快速PWM模式 --  WGM1=5,6,7,14,15(单斜波计数,用于输出高频率的PWM信号)
+    相位修正PWM --  WGM1=1,2,3,10,11(双斜波计数,用于输出高精度的，相位准确的，对称的PWM信号）
+    相位频率修正--  WGM1=8,9(用于输出高精度的，相位与频率都准确的PWM波形)
+
+    T/C的时钟源 --  CS12    CS11    CS10            说明
+                    0       0       0               无时钟源    (T/C停止)
+                    0       0       1               clkIO/1     (无预分频)
+                    0       1       0               clkIO/8     (来自预分频器)
+                    0       1       1               clkIO/64    (来自预分频器)
+                    1       0       0               clkIO/256   (来自预分频器)
+                    1       0       1               clkIO/1024  (来自预分频器)
+                    1       1       0               外部T1引脚，下降沿驱动
+                    1       1       1               外部T1引脚，上生沿驱动
+
+
+
+arduino IDE的Serial Port无法选择，google后发现解决方案。
+原因就是在ubuntu下，预置安装了一个叫brltty的程序与Arduino有冲突，卸载即可，命令如下：
+    sudo apt-get remove brltty
+
+
+
+
+BOARDS_MBV40_CONFIGURATION_HH_
+===================================================================================================
+#define BOT_TYPE 0xD314                 //HOST_CMD_STREAM_VERSION 
+
+#define STEPPER_COUNT   5               //步进电机的数量
+#define MAX_STEPPERS    5               //步进电机的最大数量
+#define EXTRUDERS       2               //打印头的数量
+
+
+
+
+runCommandSlice
+===================================================================================================
+// A fast slice for processing commands and refilling the stepper queue, etc.
+// 处理命令&填充步进电机循环队列等等
+{
+    // get command from SD card if building from SD
+    // 如果从SD卡打印，那么从SD卡读取命令,填充命令循环队列，直至队列满或者文件结尾
+    // Deal with any end of file conditions
+    // 处理文件数据读取异常,可能是SD卡错误也可能是正常结束，分别处理之
+
+
+    // get command from onboard script if building from onboard
+    // 从板子上固化的脚本中读取命令,填充循环队列.
+
+
+    // 加热床预加热完成检测
+
+
+    //If we were previously past the z pause position (e.g. homing, entering a value during a pause)
+    //then we need to activate the z pause when the z position falls below it's value
+    //条件符合时，使能暂停
+    //If we've reached Pause @ ZPos, then pause
+    //条件符合时，执行暂停
+
+
+    // don't execute commands if paused or shutdown because of heater failure
+    // If paused and heaters are on, shut them off
+    // 如果已暂停或者关闭，不要执行命令.如果已暂停，关闭加热器.
+
+    
+    // 如果当前仍处于HOMING模式，那么判断是否满足进入READY模式的条件，并处理可能的超时错误.
+
+
+    // We don't act on the PSTOP when we are homing or are paused
+    // 有关P—STOP的处理
+
+
+    //move模式下，如果步进电机不在运动，那么转入ready模式
+    //delay模式下，检查是否已超时，如果超时则进入ready模式
+    //WAIT_ON_TOOL模式下,检查是否满足进入ready模式的条件
+    //WAIT_ON_PLATFORM模式下，检查是否满足进入ready模式的条件
+    //WAIT_ON_BUTTON模式下，检查是否满足进入ready模式的条件
+    //ready模式下 —— 执行队列中的下一条命令:
+        resetUserInputTimeout重置定时器
+        如果下一条命令不可‘缓冲’，那么，等待，直到block buffer empty
+        handleMovementCommand,移动命令
+        changeToolIndex,选择打印头
+        enableAxes,轴使能
+        definePosition,坐标位置设定
+        HOST_CMD_DELAY,延迟
+        waitForButton,进入WAIT_ON_BUTTON模式
+        HOST_CMD_DISPLAY_MESSAGE,消息显示与屏幕刷新
+        startHoming
+        HOST_CMD_WAIT_FOR_TOOL,进入WAIT_ON_TOOL模式
+        HOST_CMD_WAIT_FOR_PLATFORM,进入WAIT_ON_PLATFORM模式
+        HOST_CMD_RECALL_HOME_POSITION
+        HOST_CMD_SET_POT_VALUE
+        HOST_CMD_SET_RGB_LED
+        HOST_CMD_SET_BEEP
+        HOST_CMD_TOOL_COMMAND
+        HOST_CMD_SET_BUILD_PERCENT
+        HOST_CMD_QUEUE_SONG
+        HOST_CMD_RESET_TO_FACTORY
+        HOST_CMD_BUILD_START_NOTIFICATION
+        HOST_CMD_BUILD_END_NOTIFICATION
+        HOST_CMD_SET_ACCELERATION_TOGGLE
+        HOST_CMD_STREAM_VERSION
+        HOST_CMD_PAUSE_AT_ZPOS
+        (Commands.hh文件中定义了一系列可执行的命令)
+}
+
+结构体&对象
+===================================================================================================
+class Point {
+    private:
+        int32_t coordinates[AXIS_COUNT];    //5个维度(x,y,z,a,b)的坐标值
+    public:
+        ......
+}
+
+static const s3g_command_info_t command_table_raw[] = {
+     /*   0 */  {HOST_CMD_VERSION, 0, "version"},                               //uint16_t类型的固件版本号查询
+     /*   1 */  {HOST_CMD_INIT, 0, "initialize"},                               //目前貌似什么也不做，直接返回OK
+     /*   2 */  {HOST_CMD_GET_BUFFER_SIZE, 0, "get buffer size"},               //获取目前命令队列中剩余的存储空间
+     /*   3 */  {HOST_CMD_CLEAR_BUFFER, 0, "clear buffer"},                     //记录此次此次打印所使用的材料长度以及历史长度，并复位
+     /*   4 */  {HOST_CMD_GET_POSITION, 0, "get position"},                     //读取当前打印头的坐标信息以及各限位开关信息
+     /*   7 */  {HOST_CMD_ABORT, 0, "abort"},                                   //记录此次此次打印所使用的材料长度以及历史长度，并复位
+     /*   8 */  {HOST_CMD_PAUSE, 0, "pause"},                                   //暂停
+     /*   9 */  {HOST_CMD_PROBE, 0, "probe"},                                   //NA
+     /*  10 */  {HOST_CMD_TOOL_QUERY, 0, "tool query"},                         //查询功能
+     /*  11 */  {HOST_CMD_IS_FINISHED, 0, "is finished?"},                      //检查步进电机是否仍在执行命令的过程中
+     /*  12 */  {HOST_CMD_READ_EEPROM, 0, "read EEPROM"},                       //读EEPROM
+     /*  13 */  {HOST_CMD_WRITE_EEPROM, 0, "write EEPROM"},                     //写EEPROM
+     /*  14 */  {HOST_CMD_CAPTURE_TO_FILE, 0, "capture to file"},               //打开文件
+     /*  15 */  {HOST_CMD_END_CAPTURE, 0, "end capture"},                       //关闭文件
+     /*  16 */  {HOST_CMD_PLAYBACK_CAPTURE, 0, "playback capture"},             //启动从SD卡打印
+     /*  17 */  {HOST_CMD_RESET, 0, "sortware reset"},                          //记录此次此次打印所使用的材料长度以及历史长度，并复位
+     /*  18 */  {HOST_CMD_NEXT_FILENAME, 0, "next SD card filename"},           //获取SD卡内的文件名
+     /*  19 */  {HOST_CMD_GET_DBG_REG, 0, "get debug register"},                //NA
+     /*  20 */  {HOST_CMD_GET_BUILD_NAME, 0, "get build name"},                 //当前打印的文件名
+     /*  21 */  {HOST_CMD_GET_POSITION_EXT, 0, "get position extended"},        //读取当前打印头的坐标信息以及各限位开关信息,包括A\B
+     /*  22 */  {HOST_CMD_EXTENDED_STOP, 0, "extended stop"},                   //停止步进电机以及命令的执行
+     /*  23 */  {HOST_CMD_BOARD_STATUS, 0, "get board status"},                 //获取board状态信息
+     /*  24 */  {HOST_CMD_GET_BUILD_STATS, 0, "get build statistics"},          //获取当前打印的时间以及行数信息
+     /*  27 */  {HOST_CMD_ADVANCED_VERSION, 0, "advanced version"},             //获取固件版本号以及SOFTWARE_VARIANT_ID
+     /* 112 */  {HOST_CMD_DEBUG_ECHO, 0, "debug echo"},                         //NA
+     /* 131 */  {HOST_CMD_FIND_AXES_MINIMUM, 7, "find axes minimum"},           //flags(1)|feedrate(4)|timeout_s(2)
+     /* 132 */  {HOST_CMD_FIND_AXES_MAXIMUM, 7, "find axes maximum"},
+     /* 133 */  {HOST_CMD_DELAY, 4, "delay"},                                   //暂停
+     /* 134 */  {HOST_CMD_CHANGE_TOOL, 1, "change tool"},                       //交换打印头
+     /* 135 */  {HOST_CMD_WAIT_FOR_TOOL, 5, "wait for tool ready"},             //等待就绪
+     /* 136 */  {HOST_CMD_TOOL_COMMAND, 0xffffffff, "tool action"},             //tool action
+     /* 137 */  {HOST_CMD_ENABLE_AXES, 1, "enable/disable axes"},               //使能-禁止指定轴
+     /* 138 */  {138, 2, "user block"},
+     /* 139 */  {HOST_CMD_QUEUE_POINT_EXT, 24, "queue point extended"},         //执行移动命令:以指定速度移动到目标坐标点
+     /* 140 */  {HOST_CMD_SET_POSITION_EXT, 20, "set position extended"},       //定义当前点为指定坐标点
+     /* 141 */  {HOST_CMD_WAIT_FOR_PLATFORM, 5, "wait for platform ready"},     //等待...
+     /* 142 */  {HOST_CMD_QUEUE_POINT_NEW, 25, "queue new point"},              //queue new point
+     /* 143 */  {HOST_CMD_STORE_HOME_POSITION, 1, "store home position"},       //将HOME坐标位置保存到EEPROM
+     /* 144 */  {HOST_CMD_RECALL_HOME_POSITION, 1, "recall home position"},     //重新校准HOME坐标位置
+     /* 145 */  {HOST_CMD_SET_POT_VALUE, 2, "digital potentiometer"},           //设置数字电位器
+     /* 146 */  {HOST_CMD_SET_RGB_LED, 5, "RGB LED"},                           //设置LED的颜色以及闪烁周期
+     /* 147 */  {HOST_CMD_SET_BEEP, 5, "buzzer beep"},                          //设置响铃周期以及时长
+     /* 148 */  {HOST_CMD_PAUSE_FOR_BUTTON, 4, "pause for button"},             //进入WAIT_ON_BUTTON模式
+     /* 149 */  {HOST_CMD_DISPLAY_MESSAGE, -1, "display message"},              //显示消息
+     /* 150 */  {HOST_CMD_SET_BUILD_PERCENT, 2, "build percentage"},            //打印时间以及进度信息
+     /* 151 */  {HOST_CMD_QUEUE_SONG, 1, "queue song"},                         //铃声提示
+     /* 152 */  {HOST_CMD_RESET_TO_FACTORY, 1, "restore to factory settings"},  //EEPROM恢复出场设置
+     /* 153 */  {HOST_CMD_BUILD_START_NOTIFICATION, 4, "build start notification"}, //打印文件名以及状态提示
+     /* 154 */  {HOST_CMD_BUILD_END_NOTIFICATION, 1, "build end notification"},     //打印完成提示
+     /* 155 */  {HOST_CMD_QUEUE_POINT_NEW_EXT, 31, "queue point new extended"},     //移动命令入命令循环队列
+     /* 156 */  {HOST_CMD_SET_ACCELERATION_TOGGLE, 1, "set segment acceleration"},  //加速度开启以及关闭
+     /* 157 */  {HOST_CMD_STREAM_VERSION, 20, "stream version"}                     //版本信息相关
+};
+
+默认参数
+===================================================================================================
+namespace eeprom_offsets {
+const static uint16_t VERSION_LOW				= 0x0000;           //固件版本号-低字
+const static uint16_t VERSION_HIGH				= 0x0001;           //固件版本号-高字
+const static uint16_t AXIS_INVERSION			= 0x0002;           //坐标轴反向设置
+const static uint16_t ENDSTOP_INVERSION			= 0x0004;           //限位开关反向设置
+const static uint16_t DIGI_POT_SETTINGS			= 0x0006;           //数字电位器设置
+const static uint16_t AXIS_HOME_DIRECTION 		= 0x000C;           //轴Home方向
+const static uint16_t AXIS_HOME_POSITIONS_STEPS	= 0x000E;           //HOME坐标
+const static uint16_t MACHINE_NAME				= 0x0022;           //机器名
+const static uint16_t TOOL_COUNT 				= 0x0042;           //打印头数量
+const static uint16_t VID_PID_INFO				= 0x0044;           //VID PID信息
+const static uint16_t INTERNAL_VERSION			= 0x0048;           //内部版本信息
+const static uint16_t COMMIT_VERSION			= 0x004A;           //git commit版本号
+const static uint16_t HBP_PRESENT			    = 0x004C;           //加热床是否存在
+const static uint16_t THERM_TABLE				= 0x0074;           //温度转换表？
+const static uint16_t T0_DATA_BASE				= 0x0100;           //打印头1的信息
+const static uint16_t T1_DATA_BASE				= 0x011C;           //打印头2的信息
+/// unused 8 bytes								= 0x0138;
+const static uint16_t LED_STRIP_SETTINGS		= 0x0140;           //Light effect table
+const static uint16_t BUZZ_SETTINGS		        = 0x014A;           //Buzz effect table
+///const static uint16_t FIRST_BOOT_FLAG        = 0x0156;
+const static uint16_t PREHEAT_SETTINGS          = 0x0158;           //预热设置
+const static uint16_t FILAMENT_HELP_SETTINGS    = 0x0160;           //塑料丝帮助选项           
+const static uint16_t TOOLHEAD_OFFSET_SETTINGS  = 0x0162;           //打印头偏移坐标信息
+const static uint16_t ACCELERATION_SETTINGS	    = 0x016E;           //加速度设置
+const static uint16_t BOT_STATUS_BYTES          = 0x018A;           //2字节bot status
+const static uint16_t AXIS_LENGTHS				= 0x018C;           //轴长度(x,y,z,a,b)
+const static uint16_t TOTAL_BUILD_TIME			= 0x01A0;           //total lifetime print hours
+const static uint16_t AXIS_STEPS_PER_MM	        = 0x01A4;           //轴-每移动1mm所需要移动的‘步数’
+const static uint16_t FILAMENT_LIFETIME	        = 0x01B8;           //Filament lifetime 计数器(单位:steps)
+const static uint16_t FILAMENT_TRIP		        = 0x01C8;           //Filament trip计数器(单位:steps)
+const static uint16_t ACCELERATION2_SETTINGS    = 0x01D8;           //加速度设置
+const static uint16_t AXIS_MAX_FEEDRATES	    = 0x01F4;           //轴最大速率(x,y,z,a,b)
+const static uint16_t BOTSTEP_TYPE              = 0x0208;           //硬件配置设置
+const static uint16_t HEATER_CALIBRATION        = 0x020A;           //temperature offset calibration
+const static uint16_t FREE_EEPROM_STARTS        = 0x020B;           //free space start
+
+
+
+//Sailfish specific settings work backwards from the end of the eeprom 0xFFF
+const static uint16_t PSTOP_ENABLE              = 0x0F90;           //P-stop使能
+const static uint16_t SD_USE_CRC                = 0x0F91;           //使用SD卡CRC
+const static uint16_t EXTRUDER_HOLD             = 0x0F92;           //Extruder hold
+const static uint16_t TOOLHEAD_OFFSET_SYSTEM    = 0x0F93;           //打印头偏移系统，0x00-RepG,0x01-RepG 40+
+const static uint16_t PROFILES_BASE		        = 0x0F94;           //profiles,4 x 26 bytes (PROFILES_QUANTITY * PROFILE_SIZE)
+const static uint16_t PROFILES_INIT	            = 0x0FFC;           //profiles初始化标志
+const static uint16_t OVERRIDE_GCODE_TEMP	    = 0x0FFD;           //覆盖G-code中的温度设置
+const static uint16_t HEAT_DURING_PAUSE	        = 0x0FFE;           //暂停是否加热
+const static uint16_t DITTO_PRINT_ENABLED       = 0x0FFF;           //ditto print使能
+} 
+cooler_eeprom_offsets(风扇设备)
+    -   使能标志位
+    -   DEFAULT_COOLING_FAN_SETPOINT_C
+pid_eeprom_offsets(PID参数)
+    -   P参数,DEFAULT_P_VALUE  (7.0f)
+    -   I参数,DEFAULT_I_VALUE  (0.325f)
+    -   D参数,DEFAULT_D_VALUE  (36.0f)
+replicator_axis_offsets(HOME坐标,单位:steps)eeprom_offsets::AXIS_HOME_POSITIONS_STEPS
+    -   双头(14309,7060,0,0,0)
+    -   单头(14309,6778,0,0,0)
+    -   XDUAL: 152mm, XSINGLE: 152mm, Y: 75mm, YSINGLE: 72mm        XY : 94.139704  Z : 400
+    -   PS:(以双打印头为例）
+        x轴HOME坐标 152mm*94.139704steps/mm = 14309steps 
+replicator_axis_lengths(长度-mm)
+    -   单{285L, 152L, 155L, 100000L, 100000L};
+    -   双{246L, 152L, 155L, 100000L, 100000L}; 
+    -   PS:(以双打印头为例)
+        x轴长度246mm,最大坐标值123mm,最小坐标值-123mm
+        y轴长度152mm,最大坐标值76mm,最小坐标值-76mm
+        z轴长度155mm,最大坐标值155mm,最小坐标值0mm
+replicator_axis_max_feedrates(填充速度,单位mm/min)
+    -   {18000, 18000, 1170, 1600, 1600}
+replicator_axis_steps_per_mm(每毫米的步进‘步数’，单位:steps/mm*1000000
+    -   { 94139704, 94139704, 400000000, 96275202, 96275202}
+    -   X: 94.139704
+        Y: 94.139704
+        Z: 400
+        A: 96.275201870333662468889989185642
+        B: 96.275201870333662468889989185642
+toolhead_eeprom_offsets(打印头参数设置)
+    -   Feature map: 2 bytes
+    -   Backoff stop time, in ms: 2 bytes
+    -   Backoff reverse time, in ms: 2 bytes
+    -   Backoff forward time, in ms: 2 bytes
+    -   Backoff trigger time, in ms: 2 bytes
+    -   Extruder heater base location: 6 bytes
+    -   HBP heater base location: 6 bytes data
+    -   Extra features word: 2 bytes
+    -   Extruder identifier; defaults to 0: 1 byte
+    -   Cooling fan info: 2 bytes
+profile_offsets(一些预置的参数)
+    -   {"Abs", "Pla", "Profile1", "Profile2" }             The name of the profile (8 bytes)
+    -   双头(14309,7060,0)                                  Default locations for axis in steps for X/Y/Z axis
+        单头(14309,6778,0)
+    -   预加热设置，左右打印头230摄氏度,加热床100摄氏度.
+acceleration_eeprom_offsets(加速度设置)
+    -   ACCELERATION_ACTIVE
+    -   MAX_ACCELERATION_NORMAL_MOVE
+    -   MAX_ACCELERATION_AXIS
+    -   MAX_SPEED_CHANGE
+    -   MAX_ACCELERATION_EXTRUDER_MOVE
+    -   DEFAULTS_FLAG
+acceleration2_eeprom_offsets
+    -   JKN_ADVANCE_K
+    -   JKN_ADVANCE_K2
+    -   EXTRUDER_DEPRIME_STEPS
+    -   SLOWDOWN_FLAG
+    -   FUTURE_USE
+build_time_offsets
+    -   HOURS
+    -   MINUTES
+buzz_eeprom_offsets
+    -   BASIC_BUZZ_OFFSET
+    -   ERROR_BUZZ_OFFSET
+    -   DONE_BUZZ_OFFSET
+blink_eeprom_offsets
+    -   BASIC_COLOR_OFFSET
+    -   LED_HEAT_OFFSET
+    -   CUSTOM_COLOR_OFFSET
+therm_eeprom_offsets
+    -   THERM_R0_OFFSET
+    -   THERM_T0_OFFSET
+    -   THERM_BETA_OFFSET
+    -   THERM_DATA_OFFSET
+preheat_eeprom_offsets
+    -   PREHEAT_RIGHT_OFFSET
+    -   PREHEAT_LEFT_OFFSET
+    -   PREHEAT_PLATFORM_OFFSET
+    -   PREHEAT_ON_OFF_OFFSET
+HeatMask
+    -   HEAT_MASK_PLATFORM  = 0,
+    -   HEAT_MASK_LEFT      = 1,
+    -   HEAT_MASK_RIGHT     = 2
+eeprom 
+    -   void factoryResetEEPROM();                                      //恢复出场设置，home/endstops, axis direction, 
+                                                                        //filament lifetime counter and tool count除外
+    -   void fullResetEEPROM();                                         //重置整个EEPROM的数据
+    -   void setToolHeadCount(uint8_t count);                           //设置打印头的数量
+    -   void setCustomColor(uint8_t red, uint8_t green, uint8_t blue);  //用户自定义LED的颜色
+    -   bool isSingleTool();                                            //查询是否是单打印头
+    -   bool hasHBP();                                                  //是否存在加热床
+    -   void setDefaultsAcceleration();                                 //设置默认的加速度参数
+    -   void storeToolheadToleranceDefaults();                          //TOOLHEAD_OFFSET_SETTINGS
+    -   void updateBuildTime(uint8_t new_hours, uint8_t new_minutes);   //更新打印的时间信息
+    -   void setDefaultAxisHomePositions();                             //设置默认的HOME坐标位置AXIS_HOME_POSITIONS_STEPS
+    -   void setDefaultsProfiles(uint16_t eeprom_base);                 //Write to EEPROM the default profiles
+    -   void getBuildTime(uint16_t *hours, uint8_t *minutes);           //获取打印时间信息
+    -   void setBuildTime(uint16_t hours, uint8_t minutes);             //设置打印时间信息
+    -   bool heatLights();
+
+函数
+===================================================================================================
+void setTargetNew(const Point& target, int32_t dda_interval, int32_t us, uint8_t relative)
+void setTargetNewExt(const Point& target, int32_t dda_rate, uint8_t relative, float distance, int16_t feedrateMult64)
+    target          -   目标坐标点(x,y,z,a,b)
+    dda_interval    -   us_per_step(步间距,即步与步之间的时间间隔，单位us)
+    us              -   指定多少us内完成移动
+    relative        -   是否是相对坐标
+void plan_buffer_line(FPTYPE feed_rate, const uint32_t &dda_rate, const uint8_t &extruder, bool use_accel, uint8_t active_toolhead)
+    feed_rate       -   填充速率
+    dda_rate        -   步速(单位:step/sec)
+    extruder        -   打印头序号
+    use_accel       -   使用加速度
+    active_toolhead -   当前处于激活状态的打印头
+
+备注
+===================================================================================================
+如果我们到达了预订要暂停的位置，那么，暂停机器
+    if ((( pauseZPos )                                          //预订要停止的Z轴位置
+        && ( pauseAtZPosActivated )                             //允许暂停
+        && ( isPaused() == 0 )                                  //当前机器不处于暂停状态
+        && ( steppers::getPlannerPosition()[2]) >= pauseZPos )  //到达预定要暂停的位置
+       ) {
+            pauseAtZPos(0);                                     //Clear the pause at zpos
+            host::pauseBuild(true, false);                      //暂停打印
+            return;                                             //返回
+        }
+
+
+
+G-Code && x3g
+===================================================================================================
+M103                                                            Turn all extruders off / Extruder Retraction 
+M73 P0                                                          Manually set build percentage. Valid P values are 0 to 100
+G21                                                             (set units to mm) 
+G90                                                             (set positioning to absolute)
+G162 X Y F2500                                                  (home XY axes maximum)Home positive
+G161 Z F1100                                                    (home Z axis minimum)Home negative
+G92 Z-5                                                         (set Z to -5)Define current position on axes
+G1 Z0.0 F1100                                                   (move away from the Z endstop)Coordinated Motion
+G161 Z F100                                                     (slowly home Z axis minimum again)Home negative
+---------------------------------------------------------------------------------------------------
+static uint8_t HomeAxes[] PROGMEM = { 
+    137,  8,                                                    "enable/disable axes"
+                                                                关闭所有的打印头，对应于G-code中的M103.
+    153,  0,  0,  0,  0,                                        "build start notification"
+    82,  101,  112,  71,  32,  66,  117,  105,  108,  100,  0,  RepG Build 
+                                                                打印状态-buildSteps = 0x0000 0000
+                                                                打印名称-buildName = RepG Build
+    150,  0,  255,                                              "build percentage"
+                                                                打印进度 = 0%,0xFF参数被忽略,对应于G-code中的M73 P0
+    132,  3,  125,  1,  0,  0,  20,  0,                         "find axes maximum"
+                                                                flags       = 0x11，axes_enabled(x,y)
+                                                                feedrate    = 253us/step,约合2500mm/min
+                                                                timeout_s   = 20s
+    131,  4,  136,  0,  0,  0,  20,  0,                         "find axes minimum"
+                                                                flags       = 0x100,axes_enable(z)
+                                                                feedrate    = 136us/p-step,约合1100mm/min
+    140,  0,  0,  0,  0,                                        "set position extended"
+          0,  0,  0,  0,                                        (x,y,z,a,b)=(0x0,0x0,0xFFFFF830(-2000),0x0,0x0)
+          48,  248, 255,  255,                                  z = -2000steps = -2000/400 = -5mm
+          0,  0,  0,  0,                                        即，将当前打印头所在位置的Z坐标设置为-5mm.等价于G92 Z-5
+          0,  0,  0,  0,                                        (Xmax,Ymax,Zmin,0,0) --map--> (0,0,-5,0,0)
+                                                                
+                                                                
+                                                                
+    155,  0,  0,  0,  0,                                        "queue point new extended"
+          0,  0,  0,  0,                                        （x,y,z,a,b)    = {0x0,0x0,0x0,0x0,0x0)
+          0,  0,  0,  0,                                        dda_rate        = 7333 steps/sec,即feedrate=136us/p-step,约合1100mm/min
+          0,  0,  0,  0,                                        relative        = 0b0010100(Z轴,A/B打印头)
+          0,  0,  0,  0,                                        distance        = 0x40A00000
+          165,  28,  0,  0,                                     feedrateMult64  = 1173 = 18.3325*64mm/s
+          24,                                               
+          0,  0,  160,  64,  
+          149,  4,  
+    131,  4,  220,  5,  0,  0,  20,  0,                         "find axes minimum"
+                                                                flags           = 0x100,Z轴
+                                                                feadrate        = 1500us/p-step,约合60mm/min
+                                                                timeout         = 20s
+    137,  31                                                    "enable/disable axes"
+                                                                31 = 0b00011111 = (x,y,z,a,b)所有5个轴全部关闭
+}; count: 100
+---------------------------------------------------------------------------------------------------
+关闭打印头（双头或者单头），显示打印提示信息，例如打印进度等等.设置单位为毫米.设置坐标为绝对坐标.
+将x,y轴沿正方向移动到最大位置--触碰到限位开关.将z轴沿负方向移动到最小位置--触碰到限位开关.
+将当前位置映射为（0，0，-5，0，0）,移动到位置(0,0,0,0,0,0),缓慢的将z轴沿负方向移动到最小位置.
+---------------------------------------------------------------------------------------------------
+
+
+
+(**** Replicator 1 & 2 leveling script ****)
+(**** Do not run on Thing-o-Matics or Cupcakes: their homing is backwards ***)
+M103 (disable RPM)
+M73 P0 (enable build progress)
+G21 (set units to mm)
+G90 (set positioning to absolute)
+(**** Begin homing ****)
+G162 X Y F2500 (home XY axes maximum)
+G161 Z F1100 (home Z axis minimum)
+G92 Z-5 (set Z to -5)
+G1 Z0.0 F1100 (move Z to "0")
+G161 Z F100 (home Z axis minimum)
+M132 X Y Z A B (Recall stored home offsets)
+(**** End homing ****)
+(**** Move to the center of platform using two moves.  First move with  ****)
+(**** the platform 10 mm below the extruder and thus unlikely to scrape ****)
+(**** across it.  Second move raising the platform to Z=0 and thus just ****)
+(**** below the nozzle assuming the home offsets are correct.           ****)
+G1 X0 Y0 Z10 F1100.0 (Move to [0,0,10]; unaccelerated owing to prior M132)
+G1 Z0 F1100.0 (Move to [0,0,0]; accelerated)
+(**** Disable the X & Y stepper motors so that the nozzle can be moved ****)
+(**** about to any position over the platform allowing multi-point     ****)
+(**** leveling and testing with a dial indicator or other test guage.  ****)
+M18 X Y A B (Leave Z stepper enabled; disable the others)
+M71 (Press "M" when level)
+(**** All done -- disable all the stepper motors ****)
+M18 X Y Z A B (Disable all stepper motors)
+---------------------------------------------------------------------------------------------------
+static uint8_t ReplicatorLeveling[] PROGMEM = { 
+137,  8,  
+153,  0,  0,  0,  0,  82,  101,  112,  71,  32,  66,  117,  105,  108,  100,  0,  
+150,  0,  255,  
+132,  3,  125,  1,  0,  0,  20,  0,  
+131,  4,  136,  0,  0,  0,  20,  0,  
+140,  0,  0,  0,  0,  0,  0,  0,  0,  48,  248,  255,  255,  0,  0,  0,  0,  0,  0,  0,  0,  
+155,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  165,  28,  0,  0,  24,  0,  0,  160,  64,  149,  4,
+131,  4,  220,  5,  0,  0,  20,  0,  
+144,  31,  
+139,  0,  0,  0,  0,  0,  0,  0,  0,  160,  15,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  128,  0,  0,  0,  
+155,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  165,  28,  0,  0,  24,  0,  0,  32,  65,  149,  4,  
+137,  27,  
+149,  6,  0,  0,  0,  80,  114,  101,  115,  115,  32,  34,  77,  34,  32,  119,  104,  101,  110,  32,  108,  101,  118,  101,  108,  0,
+137,  31,  
+137,  31 
+};count: 189
+
+
+
+===================================================================================================
+simulator
+===================================================================================================
+planner_SRCS = planner.cc \
+	  StepperAccelPlannerExtras.cc \
+	  s3g.c \
+	  s3g_stdio.c \
+	  $(AVRFIXDIR)/avrfix.c \
+	  $(SHAREDDIR)/StepperAccelPlanner.cc \
+	  $(MOTHERDIR)/Point.cc \
+	  $(MOTHERDIR)/Steppers.cc \
+	  $(MOTHERDIR)/StepperAxis.cc
+planner.cc  -- 入口函数以及程序说明
+---------------------------------------------------------------------------------------------------
+  function
+    pending_notice
+    handle_pending_notices
+    display
+    usage                                       //使用说明
+    main                                        //主函数
+StepperAccelPlannerExtras.cc    -- 数学运算以及状态统计等
+---------------------------------------------------------------------------------------------------
+  function
+    plan_record                                 //操作记录: 加减乘除算术等运算次数记录
+    st_set_position                             //设置dda坐标位置(x,y,z,a,b)
+    st_set_e_position                           //设置dda打印头的坐标位置(a,b)
+    st_get_position                             //读取当前dda的坐标位置
+    st_deprime_enable                           //打印头deprime_enabled状态标志
+    calc_timer                                  //根据步进频率dda_rate,计算step_lops以及定时器count
+    init_extras                                 //步进电机加速度使能以及加速度状态初始化
+    plan_dump_current_block                     //显示当前block的信息:
+                                                    哪个轴为master
+                                                    计算加速-滑行-减速时间段
+                                                    每个轴的运动方向
+                                                    检查速度变化是否过大,并记录非法次数
+    plan_dump_run_data                          //显示模拟运行数据:
+                                                    总的打印时间
+                                                    速度超限统计
+                                                    最小/平均/最大,入口速度-峰值速度统计
+    plan_block_notice
+    ftofpS                                      //_sAccum - s7.8;_Accum - s15.16;_lAccum - s7.24
+                                                //浮点数强制转换为s15.16类型,之后在转换为整形.
+    itofpS                                      //整数强制转换为s15.16类型,之后在转换为整形.
+    fpsquareS                                   
+    fpmult2S
+    fpmult3S
+    fpmult4S
+    fpdivS
+    fpscale2S
+    getEeprom8 [eeprom]                         //eeprom访问接口
+    getEeprom16 [eeprom]
+    getEeprom32 [eeprom]
+    getEepromFixed16 [eeprom]
+    setEepromFixed16 [eeprom]
+    getEepromInt64 [eeprom]
+    setEepromInt64 [eeprom]
+    storeToolheadToleranceDefaults [eeprom]
+    setDefaultsAcceleration [eeprom]
+    strlcat                                     //字符串连接函数
+s3g.c   -- s3g格式解析
+---------------------------------------------------------------------------------------------------
+  function
+    s3g_init                                    //s3g命令查找表初始化
+    s3g_open                                    //打开s3g文件,获取句柄
+    s3g_close                                   //关闭s3g文件,释放句柄
+    s3g_command_read
+    s3g_command_read_ext                        //从打开的文件句柄中读取一条命令,并填充s3g_command_t
+    writef                                      //格式化字符串并写入指定位置
+    bot_type                                    //机器类型
+    axes_mask
+    axes_names
+    s3g_add_writer
+    s3g_command_display
+s3g_stdio.c -- open/read/close
+---------------------------------------------------------------------------------------------------
+  function
+    stdio_close
+    stdio_read_retry
+    stdio_read
+    s3g_stdio_open
+$(AVRFIXDIR)/avrfix.c   -- 数据类型转换 
+---------------------------------------------------------------------------------------------------
+planner_SRCS = planner.cc \                     sailtime_SRCS = sailtime.cc \                   s3gdump_SRCS = s3gdump.c \
+	  StepperAccelPlannerExtras.cc \            	  StepperAccelPlannerExtras.c               	s3g.c \
+	  s3g.c \                                   	  s3g.c \                                   	s3g_stdio.c
+	  s3g_stdio.c \                             	  s3g_stdio.c \
+	  $(AVRFIXDIR)/avrfix.c \                   	  $(AVRFIXDIR)/avrfix.c \
+	  $(SHAREDDIR)/StepperAccelPlanner.cc \     	  $(SHAREDDIR)/StepperAccelPlanner.cc \
+	  $(MOTHERDIR)/Point.cc \                   	  $(MOTHERDIR)/Point.cc \
+	  $(MOTHERDIR)/Steppers.cc \                	  $(MOTHERDIR)/Steppers.cc \
+	  $(MOTHERDIR)/StepperAxis.cc               	  $(MOTHERDIR)/StepperAxis.cc
+
+
+
+===================================================================================================
+DDRX是方向寄存器，可读可写
+    -   在写操作时用于制定PX口是作为输入口还是输出口；
+    -   在读操作时，从DDRX寄存器读出来的是端口的方向设定值。
+    -   DDRX寄存器的初始值为0x00。
+PORTX是数据寄存器，可读写
+    -   在写操作时，从PORTX写入的数据存入内部锁存器，以确定端口的工作状态
+    -   或者将写入的数据送到外部数据总线。
+    -   PORTX寄存器的初始值为0x00。
+PINX用来访问端口X的逻辑值，且只允许读操作
+    -   从PINX读入的数据只是X口引脚的逻辑状态。其初始值为高阻态
+
+
+
+
+===================================================================================================
+机械参数配置
+===================================================================================================
+1.  X,Y轴偏移,即,Home坐标相对原点的偏移(单位:steps)
+    namespace replicator_axis_offsets{
+        const static uint32_t DUAL_X_OFFSET_STEPS   = 14309L;
+        const static uint32_t SINGLE_X_OFFSET_STEPS = 14309L;
+        const static uint32_t DUAL_Y_OFFSET_STEPS   =  7060L;
+        const static uint32_t SINGLE_Y_OFFSET_STEPS =  6778L;
+    }
+2.  X,Y,Z,A,B轴的最大长度(单位:mm)
+    namespace replicator_axis_lengths{
+        const static uint32_t axis_lengths[5] = {246L, 152L, 155L, 100000L, 100000L};
+    }
+3.  X,Y,Z,A,B轴的最大移动速度（单位:mm/min)
+    namespace replicator_axis_max_feedrates{
+        const static uint32_t axis_max_feedrates[5] = {18000, 18000, 1170, 1600, 1600};
+    }
+4.  X,Y,Z,A,B轴步进步数与移动距离的换算关系(单位:(steps/mm)*10^6
+    namespace replicator_axis_steps_per_mm{
+        const static uint32_t axis_steps_per_mm[5] = { 94139704, 94139704, 400000000, 96275202, 96275202};
+    }
+5.  A,B打印头之间的距离（单位:mm)
+    #define TOOLHEAD_OFFSET_X 35.0
+---------------------------------------------------------------------------------------------------
+0.17mm/s*200steps/r   =   34mm/r*s  =   2040mm/min
+0.04mm/s*200steps/r   =   12mm/r*s  =   720mm/min 
+---------------------------------------------------------------------------------------------------
+分频系数    频率        steprate 
+1           200Hz       5ms
+2           400Hz       2.5ms
+4           800Hz       1.25ms
+8           1600Hz      625us
+16          3200Hz      312.5us
+---------------------------------------------------------------------------------------------------
+
+
+

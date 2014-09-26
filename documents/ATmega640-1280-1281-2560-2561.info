@@ -1,0 +1,554 @@
+8-bit Timer/Counter0 with PWM
+===================================================================================================
+T/C0是一个通用8位定时计数器模块，拥有两个独立的输出比较单元以及PWM支持.可用于程序执行时事件管理以及
+产生方波.
+Features:
+        两个独立的输出比较单元
+        双缓冲输出比较寄存器
+        比较匹配时清零计数器(Auto Reload)
+        精准的PWM
+        PWM多种周期支持
+        频率产生器
+        三个独立的中断源(TOV0,OCF0A,OCF0B)
+
+TCNT0|OCR0A|OCR0B都是8位寄存器.中断请求信号在寄存器TIFR0中可见.所有的中断可在TIMSK0寄存器中开关.
+T/C0可以由内部时钟通过分频器来驱动或者通过T0引脚被外部时钟源驱动.
+OCR0A(OC0A,OCF0A);OCR0B(OC0B,OCF0B)
+
+
+Timer/Counter 0,1,3,4,5分频
+===================================================================================================
+定时/计数器0/1/3/4/5共享同一个分频模块，但是每一个定时/计数器都有不同的分频设置.
+分频系数:(CS[2:0])
+        0       0       0               无时钟源    (T/C停止)
+        0       0       1               clkIO/1     (无预分频)
+        0       1       0               clkIO/8     (来自预分频器)
+        0       1       1               clkIO/64    (来自预分频器)
+        1       0       0               clkIO/256   (来自预分频器)
+        1       0       1               clkIO/1024  (来自预分频器)
+        1       1       0               外部Tn引脚，下降沿驱动
+        1       1       1               外部Tn引脚，上生沿驱动
+GTCCR-General Timer/Counter Control Register
+        Bit7        -   T/C同步模式
+        Bit0        -   分频器重置
+TCCR0A-Timer/Counter Control Register A
+        Bits 7:6    -   COM0A 1:0,Compare Match Output A Mode,用以控制OC0A的行为(需要DDR配合)
+                        00  正常端口操作，OC0A未连接
+                        01  Toggle OC0A（比较中断触发时)
+                        10  Clear  OC0A（比较中断触发时)
+                        11  Set    OC0A（比较中断触发时)
+                        
+                        (fast PWM mode)
+                        00  正常端口操作，OC0A未连接
+                        01  WGM02=0,正常端口操作，OC0A未连接
+                            WGM02=1,Toggle OC0A（比较中断触发时)
+                        10  Clear  OC0A（比较中断触发时),设置OC0A at BOTTOM(non-inverting mode)
+                        11  Set    OC0A（比较中断触发时),清除OC0A at BOTTOM(non-inverting mode)
+
+                        (phase correct PWM mode)
+                        00  正常端口操作，OC0A未连接
+                        01  WGM02=0,正常端口操作，OC0A未连接
+                            WGM02=1,Toggle OC0A（比较中断触发时)
+                        10  Clear  OC0A（比较中断触发时,up-counting),Set    OC0A（比较中断触发时,down-counting)
+                        11  Set    OC0A（比较中断触发时,up-counting),Clear  OC0A（比较中断触发时,down-counting)
+        Bits 5:4    -   COM0B 1:0,Compare Match Output B Mode,用以控制OC0B的行为(需要DDR配合)
+                        ...
+        Bits 3:2    -   预留
+        Bits 1:0    -   WGM01:0:Waveform Generation Mode,需要结合WGM02@TCCR0B来使用. 
+TCCR0B-Timer/Counter Control Register B
+        Bit7        -   FOC0A-Force OutPut Compare A 
+        Bit6        -   FOC0B-Force OutPut Compare B
+        Bit  5:4    -   预留
+        Bit3        -   WGM02-Waveform Generation Mode
+        Bit  2:0    -   Clock Select-时钟源选择
+TCNT0-Timer/Counter Register
+OCR0A-Output Compare Register A
+OCR0B-OutPut Compare Register B
+TIMSK0-Timer/Counter Interrupt Mask Register
+        Bit  7:3    -   预留
+        Bit2        -   OCIE0B-Timer/Counter Output Compare Match B Interrupt Enable
+        Bit1        -   OCIE0A-Timer/Counter Output Compare Match A Interrupt Enable
+        Bit0        -   TOIE0-Timer/Counter Overflow Interrupt Enable
+TIFR0-Timer/Counter Interrupt Flag Register
+        Bit  7:3    -   预留
+        Bit2        -   OCF0B-Timer/Counter Output Compare B Match Flag
+        Bit1        -   OCF0A-Timer/Counter Output Compare A Match Flag
+        Bit0        -   TOV0-Timer/Counter Overflow Flag
+
+
+
+16-bit Timer/Counter 1,3,4,5
+===================================================================================================
+16位定时/计数器单元
+features:
+        真正的16位设计，例如，允许16位PWM
+        三个独立的输出比较单元
+        双缓冲输出比较寄存器
+        一个输入捕获单元
+        输入捕获噪音消除
+        比较匹配中断清零计数器(Auto Reload)
+        精准的PWM
+        可控的PWM周期
+        频率产生器
+        外部事件计数器
+        20个独立的中断源
+                TOVn,                   溢出中断
+                OCFnA,OCFnB,OCFnC       输出比较匹配中断
+                ICFn,
+TCCR1A-Timer/Counter 1 Control Register A
+TCCR1A-Timer/Counter 3 Control Register A
+TCCR1A-Timer/Counter 4 Control Register A
+TCCR1A-Timer/Counter 5 Control Register A
+        Bit 7:6     -   COMnA1:0,通道A比较输出模式,OCnA行为控制
+        Bit 5:4     -   COMnB1:0,通道B比较输出模式,OCnB行为控制
+        Bit 3:2     -   COMnC1:0,通道C比较输出模式,OCnC行为控制
+        Bit 1:0     -   WGMn1:0,Waveform Generation Mode
+TCCR1B-Timer/Counter 1 Control Register B
+TCCR1B-Timer/Counter 3 Control Register B
+TCCR1B-Timer/Counter 4 Control Register B
+TCCR1B-Timer/Counter 5 Control Register B
+        Bit7        -   ICNCn,输入捕获噪音消除,ICPn(输入捕获引脚)
+        Bit6        -   ICESn,输入捕获触发方式选择，0:下降沿，1:上升沿
+        Bit5        -   预留
+        Bit 4:3     -   WGMn3:2,Waveform Generation Mode
+        Bit 2:0     -   CSn2:0,时钟源选择
+TCCR1C-Timer/Counter 1 Control Register C
+TCCR1C-Timer/Counter 3 Control Register C
+TCCR1C-Timer/Counter 4 Control Register C
+TCCR1C-Timer/Counter 5 Control Register C
+        Bit7        -   FOCnA,通道A强制输出比较
+        Bit6        -   FOCnB,通道B强制输出比较
+        Bit5        -   FOCnC,通道C强制输出比较
+        Bit 4:0     -   预留
+
+WGMn-Waveform Generation Mode
+                        T/C             TOP         Update of OCRn x at     TOVn Flag Set On
+        0000        -   正常            0xFFFF      立即                    最大
+        0001        -   PWM/相位/8位    0x00FF      TOP                     BOTTOM
+        0010        -   PWM/相位/9位    0x01FF      TOP                     BOTTOM
+        0011        -   PWM/相位/10位   0x03FF      TOP                     BOTTOM
+        0100        -   CTC             OCRnA       立即                    最大
+        0101        -   Fast PWM/8位    0x00FF      BOTTOM                  TOP
+        0110        -   Fast PWM/9位    0x01FF      BOTTOM                  TOP
+        0111        -   Fast PWM/10位   0x03FF      BOTTOM                  TOP
+        1000        -   PWM/相位/频率   ICRn        BOTTOM                  BOTTOM
+        1001        -   PWM/相位/频率   OCRnA       BOTTOM                  BOTTOM
+        1010        -   PWM/相位        ICRn        TOP                     BOTTOM
+        1011        -   PWM/相位        OCRnA       TOP                     BOTTOM
+        1100        -   CTC             ICRn        立即                    最大
+        1101        -   (reserved)      -           -                       -
+        1110        -   Fast PWM        ICRn        BOTTOM                  TOP
+        1111        -   Fast PWM        OCRnA       BOTTOM                  TOP
+TCNT1H|TCNT1L-Timer/Counter1
+TCNT3H|TCNT3L-Timer/Counter3
+TCNT4H|TCNT4L-Timer/Counter4
+TCNT5H|TCNT5L-Timer/Counter5
+        TCNTn       -   TCNTnH+TCNTnL,16位计数器
+OCR1AH|OCR1AL-Output Compare Register 1A
+OCR1BH|OCR1BL-Output Compare Register 1B
+OCR1CH|OCR1CL-Output Compare Register 1C
+OCR3AH|OCR3AL-Output Compare Register 3A
+OCR3BH|OCR3BL-Output Compare Register 3B
+OCR3CH|OCR3CL-Output Compare Register 3C
+OCR4AH|OCR4AL-Output Compare Register 4A
+OCR4BH|OCR4BL-Output Compare Register 4B
+OCR4CH|OCR4CL-Output Compare Register 4C
+OCR5AH|OCR5AL-Output Compare Register 5A
+OCR5BH|OCR5BL-Output Compare Register 5B
+OCR5CH|OCR5CL-Output Compare Register 5C
+        OCRnx       -   OCRnxH+OCRnxL,包含一个16位的计数值，用以连续的跟TCNTn进行比较.
+                        比较的结果可以用于产生一个‘输出比较中断’或者在OCnx引脚上产生方波.
+ICR1H|ICR1L-输入捕获寄存器1
+ICR3H|ICR3L-输入捕获寄存器3
+ICR4H|ICR4L-输入捕获寄存器4
+ICR5H|ICR5L-输入捕获寄存器5
+        输入捕获跟随TCNTn计数器进行更新——每次ICPn引脚上有事件产生(或者Analog Comparator output for Timer/Counter1)
+        输入捕获可以用于设定计数器的TOP值.
+TIMSK1-Timer/Counter 1 Interrupt Mask Register
+TIMSK3-Timer/Counter 3 Interrupt Mask Register
+TIMSK4-Timer/Counter 4 Interrupt Mask Register
+TIMSK5-Timer/Counter 5 Interrupt Mask Register
+        Bit5        -   ICIEn,输入捕获中断使能标志位
+        Bit3        -   OCIEnC,输出比较匹配中断使能标志位
+        Bit2        -   OCIEnB,输出比较匹配中断使能标志位
+        Bit1        -   OCIEnA,输出比较匹配中断使能标志位
+        Bit0        -   溢出中断使能标志位
+TIFR1-Timer/Counter1 Interrupt Flag Register
+TIFR3-Timer/Counter3 Interrupt Flag Register
+TIFR4-Timer/Counter4 Interrupt Flag Register
+TIFR5-Timer/Counter5 Interrupt Flag Register
+        Bit5        -   ICFn,输入捕获标志位
+        Bit3        -   OCFnC,C输出比较匹配标志位
+        Bit2        -   OCFnB,B输出比较匹配标志位
+        Bit1        -   OCFnA,A输出比较匹配标志位
+        Bit0        -   TOVn,溢出标志
+GTCCT-General Timer/Counter Control Register
+        Bit7        -   TSM,Timer/Counter Synchronization Mode
+        Bit0        -   PSRSYNC,Prescaler Reset for Synchronous Timer/Counters
+
+
+8-bit Timer/Counter with PWM and Asynchronous Operation
+===================================================================================================
+定时器/计数器2十一个通用单通道8位定时计数模块:
+    单通道计数
+    自动重载
+    PWM
+    频率产生器
+    10-bit时钟分频
+    溢出以及比较中断(TOV2,OCF2A,OCF2B)
+    Allows Clocking from External 32KHz Watch Crystal Independent of the I/O Clock
+TCCR2A-Timer/Counter Control Register A
+    Bit  7:6        -   COM2A1:0,比较匹配输出模式A
+                        00，正常端口操作，OC2A未连接
+                        01，Toggle OC2A(比较匹配时)
+                        10，Clear OC2AA(比较匹配时)
+                        11，Set OC2A(比较匹配时)
+                        ......
+    Bit  5:4        -   COM2B1:0,比较匹配输出模式B
+                        ......
+    Bit  3:2        -   预留
+    Bit  1:0        -   WGM21:0,波形产生模式, WGM2[2:0]的一部分
+                        值      T/C模式         TOP     Update of OCRx at       TOV flag Set on
+                        000     Normal          0xFF    Immediate               MAX
+                        001     PWM/Phase       0xFF    TOP                     BOTTOM
+                        010     CTC             OCRA    Immediate               MAX
+                        011     Fast PWM        0xFF    BOTTOM                  MAX
+                        100     预留            -       -                       -
+                        101     PWM/Phase       OCRA    TOP                     BOTTOM
+                        110     预留            -       -                       -
+                        111     Fast PWM        OCRA    BOTTOM                  TOP
+TCCR2B-Timer/Counter Control Register B
+    Bit7            -   FOC2A，Force Output Compare A
+    Bit6            -   FOC2B，Force Output Compare B
+    Bit  5:4        -   预留
+    Bit3            -   WGM22:,波形产生模式
+    Bit  2:0        -   CS22:0,时钟源选择
+                        000     无时钟源
+                        001     无分频
+                        010     8分频
+                        011     32分频
+                        100     64分频
+                        101     128分频
+                        110     256分频
+                        111     1024分频
+TCNT2-Timer/Counter Register
+OCR2A-Output Compare Register A
+OCR2B-Output Compare Register B
+ASSR-Asynchronous Status Register
+    Bit6            -   EXLK,外部时钟源输入使能
+    Bit5            -   AS2,异步时钟计数器设置位
+    Bit4            -   TCN2UB,T/C2 Update Busy,TCNT2等待更新.
+    Bit3            -   OCR2AUB,输出比较寄存器2 Update Busy,OCR2A等待更新.
+
+
+
+
+
+
+
+下载
+===================================================================================================
+1.  并行下载线，AVRDUDE_PORT="lpt1",AVRDUDE_PROGRAMMER="pony-stk200"
+2.  USBasp USB口下载器,利用一块MEGA8|MEGA48单片机的I/O口模拟实现USB低速设备.
+    USBasp通过WINDOWS下的驱动程序LIBUSB-WIN32与上位机软件AVRDUDE衔接,Libusb-win32仍时一个开源的项目.
+    它时为了WinAVR内的AVRDUDE与AVaRICE连接Ateml JTAG ICE mkII和the Atmel AVRISP mkII而设计的USB驱动程序接口程序.
+    AVRDUDE_PORT=xxx #programmer connected to serial device
+    AVRDUDE_PROGRAMMER=usbasp
+3.  串行口下载器
+
+AVRISP MKII下载器时ATMEL公司开发的AVRISP第二代产品，USB接口.AVRISP MKII支持全系列AVR+部分其他芯片(如S51等)
+AVRISP MKII是一种结构紧密而且容易使用的在线编程工具,由USB供电，因而无需额外能源供应.
+AVRISP MKII编程接口集成于AVR Studio中.Flash,EEPROM和所有的Fuse和Lock bit可编程ISP选项，可以选择单个分别编程
+或者连续自动编程.                       AVRISP mkII
+PC <-->USB cable<-->   USB driver<-->MCU<-->level converter protection  <-->Target cable<-->Target MCU
+ISP接口电缆:正常的10脚连接插头|6脚连接插头
+    信号        6-pin       10-pin      I/O         描述
+    VTG/VCC     2           2           --          目标板上的电源
+    GND         6           4,6,8,10    --          地
+    MOSI        4           1           输出        AVRISP到目标芯片的指令或数据
+    MISO        1           9           输入        目标芯片到AVRISP的数据
+    SCK         3           7           输出        串行时钟，由AVRISP控制
+    RESET       5           5           输出        复位，由AVRISP控制
+几乎所有AVR MCU出厂时的时钟源使用的是内部1M振荡源，而下载器的下载速度必须低于AVR MCU时钟源的1/4，也就是必须低于250K。
+初次接入PC机，请根据AVR的实际时钟源，设置相应的烧写速度。对于具备高速时钟源的AVR，如ATMEGA168-20AU若时钟源设置为20M，
+可采用4M烧写速度，2秒写完16K FLASH ROM！
+
+
+
+mega8熔丝位
+===================================================================================================
+RSTDISBL        -   1-复位功能；    0-I/O功能(PC6)
+WDTON           -   1-打开看门狗;   0-关闭看门狗
+SPIEN           -   1-禁止SPI下载   0-允许SPI下载
+EEAVE           -   1-烧录时不保留  0-保留(EEPROM的数据)
+BODEN           -   1-禁止          0-允许(BOD功能控制)
+BODLEVEL        -   1-2.7V          0-4.0V(BOD电平选择)
+BOOTRST         -   1-0x0000        0-引导区确定的入口地址(复位入口地址)
+BOOTSSZ[1:0]    -   00  1024word/0xc00(引导程序的入口以及大小)
+                    01  512word/0xe00
+                    10  256word/0xf00
+                    11  128word/0xf80
+BLB[1:0]        -   11  SPM|LPM指令都允许执行，程序区指令选择
+                    10  SPM指令禁止写程序区
+                    01  引导区LPM指令禁止读取程序区内容，如果中断向量定义在引导区，则禁止该中断在程序区执行
+                    00  SPM指令禁止写程序区，引导区LPM指令禁止读取程序区内容，如果中断向量定义在引导区，
+                        则禁止该中断在程序区执行
+LB[1:0]         -   11  未加密，程序区加密位选择
+                    10  程序区和EEPROM编程功能禁止,熔丝位锁定.
+                    00  程序和EEPROM编程以及校验功能禁止，熔丝位锁定.
+CKSEL[3:0]      -   时钟源选择
+CKOPT           -   晶振选择
+SUT[1:0]        -   复位启动时间选择
+
+
+
+AVR Memories
+===================================================================================================
+ATmega640/1280/1281/2560/2561具有64K/128K/256K字节的On-chip In-System可重复编程存储器.
+因为AVR指令都是16或者32位宽度的，所以flash的组织形式为32K/64K/128K x 16.
+为了软件安全考虑，flash可编程区域划分为两个区域:启动程序区以及应用程序区.
+Flash至少可以经受10000次擦写周期.ATmega640/1280/1281/2560/2561的PC值具有15/16/17位宽度，
+用于寻址32K/64K/128K编程地址.
+    Address(HEX)                0x000   ________________________________
+                                            Application Flash Section
+                        
+                                        ________________________________
+                                            Boot Flash Section
+
+                0x7FFF/0xFFFF/0x1FFFF   ________________________________
+
+
+    Address(HEX)             0 - 1F     ________________________________
+                                                32 Registers
+                             20-5F      ________________________________ 
+                                                64I/O Registers
+                             60-1FF     ________________________________
+                                            416 External I/O Registers
+                             200        ________________________________
+                                            8192x8 内部SRAM
+                             21FF       ________________________________
+                                            0-64Kx8 外部SRAM 
+                             FFFF       ________________________________
+Memory Programming
+===================================================================================================
+Lock Bit Byte       -        bit7
+                             bit6
+                             bit 5:2,BLB1[1:0]+BLB0[1:0]
+                             bit 1:0,LB[1:0]
+Extended Fuse Byte  -        bit 7:3,预留
+                             bit 2:0,BODLEVEL2~BODLEVEL0（Brown-out Detector trigger level)
+Fuse High Byte      -        bit 7,OCDEN,enable OCD
+                             bit 6,Enable JTAG
+                             bit 5,SPIEN,Serial Proram and Data Downloading
+                             bit 4,WDTON,Watchdog Timer always on
+                             bit 3,EESAVE,EEPROM memeory is preserved
+                             bit 2:1    BOOTSZ[1:0]
+                             bit 0,BOOTRST，Select Reset Vector
+Fuse Low Byte       -        bit 7,CKDIV8,Divide clock by 8
+                             bit 6,CKOUT,clock output
+                             bit 5:4,SUT[1:0],Select Start-up time
+                             bit 3:0,CKSEL[3:0],Select Clock source
+
+# Upload bootloader via isp
+avrdude -p at90usb82 -F
+        -P usb -c avrispmkii 
+        -U flash:w:Makerbot-usbserial.hex 
+        -U lfuse:w:0xFF:m                       
+        -U hfuse:w:0xD9:m 
+        -U efuse:w:0xF4:m 
+        -U lock:w:0x0F:m
+
+# Upload bootloader via isp
+avrdude -p m1280 -F 
+        -P usb -c avrispmkii 
+        -U flash:w:ATmegaBOOT_168_atmega1280.hex 
+        -U lfuse:w:0xFF:m 
+        -U hfuse:w:0xDA:m 
+        -U efuse:w:0xF4:m 
+        -U lock:w:0x0F:m
+
+#Upload firmware
+scons platform=mb40 port=/dev/ttyACM0 upload
+
+下载
+===================================================================================================
+SPI模式（串行设备总线）
+PB3     -   MISO/PCINT3(SPI Bus Master Input/Slave Output or Pin Change Interrupt 3)
+            当SPI工作在master模式,这个引脚被配置位输入.
+            当SPI工作在slave模式，这个引脚由DDB3控制.
+PB2     -   MOSI/PCINT2(SPI Bus Master Output/Slave Input or Pin change Interrupt 2)
+            当SPI工作在slave模式,这个引脚被配置位输入.
+            当SPI工作在master模式,这个引脚由DDB2控制.
+PB1     -   SCK/PCINT1(SPI Bus Serial Clock or Pin Change Interrupt 1)
+            当SPI工作在slave模式，这个引脚被配置位输入.
+            当SPI工作在master模式，这个引脚由DDB1控制.
+PB0     -   #SS/PCINT0(SPI Slave Select input or Pin Change Interrupt 0)
+            SPI工作在slave模式，这个引脚被配置为输入，作为slave,引脚拉低时，SPI处于激活状态.
+            SPI工作在master模式，这个引脚由DDB0控制.
+SPI     -   Serial Peripheral Interface,同步串行外设接口,摩托罗拉公司开发的全双工同步串行总线.
+            SPI = SDI（串行数据输入）+ SDO（串行数据输出）+ SCK（串行时钟）+ CS（从设备使能信号）
+            CS决定了唯一的与注射被通信的从设备，如果没有CS信号，则只能存在一个从设备.
+            注射被通过产生一个时钟信号来发起通讯，数据由SDO输出，SDI输入.
+            数据在时钟的上升沿或者下降沿由SDO输出，在紧接着的下降沿或者上升沿由SDI读入,
+            这样经过8/16次时钟的改变，完成8/16位数据的传输.
+            该总线通信基于主-从(所有的串行总线都是这样,USB,IIC,SPI等)配置，方向基于主设备的角度:
+                MOSI：  主出/从入
+                MISO：  主入/从出
+                SCK ：  串行时钟
+                SS  :   片选
+            SPI传输中，数据时同步进行发送和接受的.数据传输的时钟基于来自主处理器的时钟脉冲(好像也可以时IO上的电平模拟时钟)
+
+UART模式（通用同步/异步串行接受/发送器）
+PE2     -   AIN0/XCK0,Analog Comparator Positive Input或者USART0外部时钟输入输出
+PE1     -   PDO/TXD0,编程数据输出(Only for ATmega1281/2561)或者USART0发送端口
+PE0     -   PDI/RXD0,编程数据输入(Only for ATmega1281/2561)或者USART0接收端口
+PD5     -   XCK1,USART1 外部时钟输入/输出
+PD3     -   INT3/TXD1，外部中断3输入或者USART1发送引脚
+PD2     -   INT2/RXD1，外部中断2输入或者USART2接收引脚
+PH2     -   XCK2,USART2外部时钟
+PH1     -   TXD2,USART2发送端
+PH0     -   RXD2,USART2接收端
+PJ2     -   XCK3/PCINT11
+PJ1     -   TXD3/PCINT10
+PJ0     -   RXD3/PCINT19
+
+TWI模式（I2C总线）
+PD1     -   INT1/SDA，外部中断1输入或I2C的数据线
+PD0     -   INT0/SCL，外部中断0输入或I2C的时钟线
+            
+Register Description
+===================================================================================================
+UDRn    -   USART I/O Data Register n
+            USART发送数据缓冲区寄存器|接收数据缓冲区寄存器共享同样的I/O地址，即，UDRn = TXB|RXB.
+            写入UDRn的数据将会被送到TXB,对UDRn进行读操作则会返回RXB的内容.
+UCSRnA  -   USART Control and Status Register A
+            Bit7,RXCn,USART Receive Complete,接收完成标志位.
+            Bit6,TXCn,USART Transmit Complete,发送完成标志位.
+            Bit5,UDREn,USART数据寄存器是否为空标志位.1-empty(等待写入)
+            Bit4,FEn,Frame Error
+            Bit3,DORn,Data OverRun
+            Bit2,UPEn,USART parity Error
+            Bit1,U2Xn,Double the USART Transmission Speed
+            Bit0,MPCMn,Multi-processor Communication Mode
+UCSRnB  -   USART Control and status reigster B
+            Bit7,RXCIEn,RX完成中断使能
+            Bit6,TXCIEn,TX完成中断使能
+            Bit5,UDRIEn,数据寄存器空中断使能
+            Bit4,RXENn,接收使能
+            Bit3,TXENn,发送使能
+            Bit2,UCSZn2,Character size n
+            Bit1,RXB8n,接收数据的第9位
+            Bit0,TXB8n,发送数据的第9位
+UCSRnC  -   USART Control and status reigster C
+            Bits 7:6,UMSELn 1:0,USART模式选择   -00,异步 01，同步 10，预留 11，Master SPI(MSPIM)
+            Bit2 5:4,UPMn 1:0  ,Parity Mode     -00,禁止 01，预留 10，使能(偶校验模式) 11，使能(奇校验模式)
+            Bit3    ,USBSn,停止位选择，发送时插入的停止位数量，接收时直接忽略.  0,1-bit  1,2-bit
+            Bit 2:1 ,UCSZn[1:0],字符大小设置
+                    000,5bit|001,6bit|010,7bit|011,8bit
+                    100,N/A |101,N/A |110,NA  |111,9bit
+            Bit0,UCPOLn,Clock Polarity          -0,上升沿发送下降沿接收，1下降沿发送上升沿接收
+UBRRnL and UBRRnH-USART Baud Rate Registers
+            Bit 15:12,预留
+            Bit 11:0,UBRR,USART波特率寄存器.
+USART in SPI Mode
+            USART可以工作在SPI模式(主设备)
+
+
+SPI-UART-I2C(串行外设接口-内部整合电路-通用异步收发器)
+===================================================================================================
+SPI由三条信号线组成:        串行时钟-SCLK       串行数据输出-SDO        串行数据输入-SDI
+                            SPI总线可以实现多个SPI设备互相连接.提供SPI串行时钟的SPI设备位SPI主机或主设备.
+                            其他设备为SPI从机或从设备.主从设备之间可以实现全双工通信.
+                            当有多个从设备时，还可以增加一条从设备选择线.
+
+                            GPIO模拟SPI：
+                            必须要有一个输出口SDO,一个输入口SDI.另一个口则视实现的设备类型而定，
+                            如果要实现‘主从’设备，则两个都需要，若只实现主设备，则需要输出口即可，
+                            若实现从设备，则只需要输入口即可.
+
+I2C总线:                    双向-两线(SCL，SDA）-串行-多主控(multi-master)接口标准
+                            具有总线仲裁机制，非常适合在器件之间进行近距离、非经常性的数据通信。
+                            在它的协议体系中，传输数据时都会带上目的设备的设备地址，因此可以实现设备组网.
+
+                            GPIO模拟I2C：
+                            必须一个输入输出口SDA,另外需要一个输出口SCL.
+
+UART总线:                   异步-串口
+                            比前两种同步串口的结构复杂很多，一般由波特率产生器(产生的波特率等于传输波特率的16倍)
+                            UART接收器、UART发送器组成，硬件上由两根线，一根用于发送，一根用于接收.
+
+                            GPIO模拟UART：
+                            必须一个输入口一个输出口.
+---------------------------------------------------------------------------------------------------
+SPI和UART可以实现全双工，I2C不行.
+I2C抗干扰能力较弱，一般用于同一板卡上芯片之间的通信，较少用于远距离通信.
+SPI实现要简单一些,SPI具有时钟协议.
+UART需要固定的波特率.
+I2C的速度比SPI慢一点，协议比SPI复杂一点，连线也比标准的SPI要少.
+UART vs USART,多了一个同步？
+UART vs SPI,SPI多了一条同步时钟线，对通信双方的时序要求不严格，因而不同设备之间可以很容易结合.
+SPI一般用于产品内部元件之间的告诉数据通信上面，如大容量存储器.
+I2C接口也是两线接口，他是两根线之间通过复杂的逻辑关系传输数据的，通信速度不高，程序写起来也比较复杂.
+一般单片机系统里主要用来和24C02等小容量存储器连接.
+---------------------------------------------------------------------------------------------------
+SPI总线，即，串行外围设备接口，由摩托罗拉公司推出的一种同步串行接口.
+摩托罗拉公司的大多数MCU都配有SPI硬件接口.SPI总线时一种三线同步总线，因其硬件功能很强，软件相当简单.
+IIC总线是飞利浦公司开发的一种高效、实用、可靠的双向二线制串行数据传输结构总线.
+该总线使各电路分割成各种功能模块，并进行软件化设计，哥哥功能模块电路内都由集成一个IIC总线接口电路.
+因此都可以挂接在总线上，很好的解决了众多功能IC与CPU之间的输入输出接口，使其连接方式变得十分简单.
+IIC总线上的期间分为主控器件和被控器件两大类.只要在正常工作总有一个IIC在总线上发送信息数据，
+一般是在开机后cpu首先向各个功能模块电路发出自检信号，得到各个功能模块电路正常反馈的数据信号后，
+机器才进入正常工作状态.
+I2S(Inter-IC Sound Bus)是飞利浦公司为数字音频设备之间的音频数据传输而指定的一种总线标准.
+I2S则大部分时3线的（除了时钟和数据外，还有一个左右声道的选择信号），I2S主要用来传输音频信号。如STB-DVD-MP3等常用.
+UART是用于控制计算机与串行设备的芯片，提供RS-232C数据终端设备接口，这样计算机就可以和调制解调器或其他使用RS-232
+接口的串行设备通信了.作为接口的一部分，UART还提供一下功能：
+    将由计算机内部传送过来的并行数据转换为输出的串行数据流.
+    将计算机外部来的串行数据转换位字节，共计算机内部使用并行数据的器件使用.
+    在输出的串行数据流中加入及偶校验位，并对从外部接收的数据流进行及偶校验.
+    在输出数据流中加入起停标记，并从接收数据流中删除起停标记.
+    处理由键盘或鼠标发出的中断信号（键盘和鼠标也是串行设备）
+    可以处理计算机与外部串行设备的同步管理问题.
+    有一些高档的UART还提供输入输出数据缓冲区
+GPIO(General Purpose Input Output) 
+    GPIO-端口扩展器
+    低功耗，GPIO具有耕地的功耗（约1uA)
+    集成IIC从机接口,GPIO内置IIC从机接口，即使在待机模式下也能够全速工作.
+    小封装，GPIO器件提供最小的封装尺寸-3mm x 3mm QFN!
+    低成本，不用为没使用的功能买单.
+    快速上市，不需要编写额外的代码、文档、无需维护.
+    灵活的灯光控制，内置所路高分频率的PWM输出.
+    可预先确定响应时间，缩短或确定外部事件与中断之间的响应时间.
+    更好的灯光效果，匹配的电流输出确保均匀的显示亮度.
+    布线简单，仅需要使用2条IIC总线或3条SPI总线
+SDIO
+    SD型的扩展接口，除了可以接SD卡外，还可以支持SDIO接口类设备
+    PDA,GPS接收器，Wi-Fi,蓝牙适配器，调制解调器，局域网适配器，条形码读取器，FM无线电，电视接收器，射频身份认证读取器，数码相机.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

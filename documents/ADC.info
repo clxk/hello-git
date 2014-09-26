@@ -1,0 +1,56 @@
+ADMUX -- ADC multiplexer selection register
+===================================================================================================
+BIT 7:6 REFS1:0,reference selection bits
+        00  AREF,internal Vref turned off
+        01  AVCC with external capacitor at AREF pin
+        10  internal 1.1v voltage reference with external capacitor at AREF pin
+        11  internal 2.56vvoltage reference with external capacitor at AREF pin
+BIT 5   ADLAR,ADC left adjust result
+BIT 4:0 MUX4:0,analog channel and gain selection bits
+---------------------------------------------------------------------------------------------------
+ADCSRB &= ~0b01000;         //select ADC0 ~ ADC7
+ADCSRB |= 0b01000;          //select ADC8 ~ ADC15
+ADMUX = 0b01000000 + pin;   //select ADC Channel and connect AREF to AVCC
+
+
+
+ADCSRB -- ADC control and status register B
+===================================================================================================
+BIT 7   NA
+BIT 6   ACME
+BIT 5:4 NA
+BIT 3   MUX5,Analog channel and Gain Selection Bit
+BIT 2:0 ADTS2:0,ADC auto tigger source
+
+
+
+ADCSRA -- ADC control and status register A
+===================================================================================================
+BIT 7   ADEN,ADC enable                 1: enable 0: turned off
+BIT 6   ADSC,ADC start conversion       1: start  0: conversion complete 
+BIT 5   ADATE,ADC auto trigger enable   1: start a conversion on a positive edge of selected signal
+                                           trigger source is selected by setting the ADTS in ADCSRB
+BIT 4   ADIF,ADC interrupt flag         1: ADC trigger completes and the DATA Registers are updated
+BIT 3   ADIE,ADC interrupt enable       1: active 0: deactive
+BIT 2:0 ADPS2:0,ADC prescaler select bit
+---------------------------------------------------------------------------------------------------
+ADCSRA |= _BV(ADPS2)    //Division Factor = 128
+        | _BV(ADPS1) 
+        | _BV(ADPS0) 
+        | _BV(ADEN)     //ADC enable
+        | _BV(ADIE);    //ADC interrupt enable
+ADCSRA |= _BV(ADSC);    //Start a new convension
+
+
+
+ADCL and ADCH -- The ADC data register
+===================================================================================================
+ADLAR = 0,right adjusted
+    ADCH 1:0    DATA 9:8
+    ADCL 7:0    DATA 7:0
+ADLAR = 1,left adjusted
+    ADCH 7:0    DATA 9:2
+    ADCL 1:0    DATA 1:0
+
+
+

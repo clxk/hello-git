@@ -1,0 +1,669 @@
+Commands
+    Control Commands
+    List Commands
+        jump commands
+        mark commands
+        arc commands
+        commands for setting various scanning parameters
+
+set_start_list                          //打开一个缓冲区用于写入list commands
+set_end_of_list                         //数据输入完成后关闭缓冲区
+execute_list||external start signal     //启动执行
+stop_execution||external stop signal    //终止执行
+get_status||read_status                 //状态测试
+RTC4可以有两个list缓冲区，因此，在执行其中的一个list时，另外一个list可以进行装载，
+因此，PC可以与RTC4并行工作.同一时刻仅能执行一个list,且执行期间,execute_list命令以及
+外部启动信号将被忽略.list的执行可以在任意时刻终止——紧急停机.
+auto_change||auto_change_pos            //自动执行list切换
+
+/START /STOP
+低电平有效(10us),/STOP输入总是使能的./START需要通过set_control_mode指令进行使能.
+随后的START请求将启动已装载list的执行.可以通过select_list选择需要执行的list.
+或者set_extstartpos_list也可以.检查一个list是否被成功启动执行可以使用get_startstop_info
+一个显式的stop_execution调用将禁用外部/START输入.一个外部的/STOP信号也将禁用外部/START输入.
+/START输入是跳变沿(H->L)有效的，而/STOP输入是低电平有效的.
+
+set_wait                                //类似一个断点功能
+get_wait_status                         //用于判断处理器是否因为遇到断点而暂停
+release_wait                            //从断点恢复执行
+
+扫描头以及激光控制
+    向量指令(Vector Commands)
+        jump commands
+            jump_abs||jump_rel
+            set_jump_speed(如果激光系统不允许快速开关，那么jump speed必须足够快)
+            home_position
+        mark commands
+            mark_abs||mark_rel
+            set_mark_speed
+        这些指令需要(x,y)坐标作为向量的终点,向量的起点，即，当前输出位置(通常
+        是上一条向量的终点);RTC4复位时的初始坐标点为(0,0).
+    圆弧指令
+        arc commands
+            arc_abs||arc_rel
+        这些指令需要圆弧的中心点(x,y)坐标，以及圆弧角度，并且以及当前输出点为起点.
+    Microsteps
+        步进周期10us,不可设置.16位数据输出宽度允许每个向量或者圆弧多达2**16个微步.
+        如果makring speed很低切向量或者圆弧很长,10us的步进周期将导致超过2**16个微步.
+        这种情况下，RTC4会自动调整输出周期.
+    Marking Time
+        save_and_restart_timer
+        get_time
+    Delays
+        Laser Delays
+            LaserOn delay
+            LaserOff delay
+            set_laster_delays
+            激光开关延迟时间必须适应已定义的jump speed以及marking speed
+        Scanner Delays
+            jump delay
+            mark delay
+            polygon delay
+            set_scanner_delays
+            set_delay_mode(Minimus jump delay;jump Length Limit)
+            load_varpolydelay
+            扫描延迟(延迟优化对于打印质量具有相当地影响)
+    Image Field Size
+        所有XY向量坐标使用有符号的16位整数表示.(-32768~32767)
+        a0=最大扫描角度下的扫描边线长度，K0=2**16/a0
+        理论扫描区域-实际扫描区
+        输入激光束 + 扫描振镜1 + 扫描振镜2 + 扫描平台
+    Image Field Correction
+    Laser Control      
+        set_laser_mode
+        disable_laser||enable_laser
+        get_startstop_info(获取激光控制的当前状态)
+        set_laser_timing
+        set_standby
+        set_firstpulse_killer
+        set_firstpulse_killer_list
+        write_da_1||write_da_1_list
+        write_8bit_port||write_8bit_port_list
+        set_softstart_mode
+        set_softstart_level
+        RTC4提供一些激光控制信号，据可编程的脉冲宽度和频率.可用于控制不同类型的激光器.
+        所有的激光信号都是TTL信号.最大电流负载10mA.
+    状态检测以及诊断
+        get_value
+            XY2-100兼容的状态信号--get_head_status
+            LASERON信号的当前值
+            当前迪卡尔输出值(set_matrix,set_matrix_list,set_offset,set_offset_list)
+            当前实际的输出值(数字信号),RTC4->扫描系统
+            set_trigger|get_waveform|measurement_status
+            control_command用于选择扫描头返回给控制板的数据.
+            RTC4接收到的数据可以在任意时刻被异步的读取(get_value,get_head_status)
+            或者同步的读取(set_trigger)
+            切换数据源时，读之前至少要等待50us.传输数据值的范围以及可能的状态描述可参考control_command
+            control_command还可以用于设置位置反馈的阀值.
+
+
+===================================================================================================
+Advanced Programming
+===================================================================================================
+坐标转换
+    [x']   [m11 m12]   [x]   [x0]
+    [y'] = [m21 m22] • [y] + [y0] 
+    m11...m22变换矩阵由set_matrix指令进行设置.
+    (x0,y0)偏移量由set_offset指令定义
+    set_matrix_list|set_offset_list指令以类似的方式工作.
+    例子:
+        旋转60度(逆时针)
+        set_matrix(0.5,-0.866,0.866,0.5)
+        缩放
+        set_matrix(kx,0,0,-ky)
+        X轴镜像
+        set_matrix(-1,0,0,1)
+        Y轴镜像
+        set_matrix(1,0,0,-1)
+        X-Y交换
+        set_matrix(0,1,1,0)
+        倾斜
+        set_matrix(1,-0.25,0,1)
+Wobbel Function
+    set_wobbel
+    允许在扫描的过程中更改线宽
+使用两种不同的校准文件
+    select_cor_table
+在一个计算机中使用多个RTC4板
+    RTC4驱动DLL支持同时控制多达8个RTC4板,每个板之间完全独立工作.
+    每一个板上的command lists可以在任意时刻装载以及执行.
+    Multi-Board Programming
+        n_get_serial_number
+        rtc4_count_cards
+        例子:
+            n_jump_abs(1,500,500)
+            写一个跳转指令到点(500,500)进入RTC4 board#1的当前list.
+            n_execute_list(RTC4_no,list_no)
+            执行指令序列(1或者2)在指定的板子上(RTC4_no)
+            sn_1 := n_get_serial_number(1)
+            返回board#1的序列号
+    Sequential Programmming
+        select_rtc激活已安装的RTC4板中的某个.
+        rtc4_count_cards
+Circular Queue Mode
+    RTC4内存可以用作两个list buffer也可以用作一个循环队列
+    循环队列模式可以用set_list_mode使能
+    当使用循环队列模式时，只有如下命令可使用:set_end_of_list,stop_execution,stop_list,restart_list
+    避免试图向一个满的循环缓冲区写入新的指令.
+    为了避免lock period，调用get_list_space，它将返回循环缓冲区的可用容量.(最大值是8000)
+    随时记录剩余可用容量而不是调用get_list_space是一个不错的主义.
+结构化编程
+    set_list_jump
+    list_call
+    list_call_cond
+    list_jump_cond
+    list_return
+    list_nop
+    这些指令使用RTC4 list内存作为一个单一的list buffer,其容量为8000.
+    list buffer中的每一个指令具有唯一的地址(0~7999)
+    set_input_pointer | execute_at_pointer允许结构化list编程以及执行.
+    set_input_pointer指令将输入指针定位到任意地址处(0~7999),下一条指令将被写入到这个地址.
+    get_input_pointer
+    set_list_jump指令定义了一个跳转，到指定地址.执行的过程中RTC4跳转到那个地址.
+    类似的，list_call指令定义了一个跳转，到子程序.sub-list需要使用list_return进行返回.
+    main-list必须使用set_end_of_list进行终止.
+    条件list跳转以及子程序调用可通过list_jump_cond以及list_call_cond进行编程
+    在任指定地址处执行,需使用execute_at_pointer.如果遇到list buffer的结束,RTC4重新从零地址开始.
+    如果使用外部启动信号,set_extstartpos_list允许为外部list start定义一个启动地址.
+    例子：
+        set_start_list(1);
+            ...
+            set_io_cond_list(0,0,1);
+            list_jump_cond(0,1,get_input_pointer);
+            clear_io_cond_list(0,0,1);
+            list_jump_cond(1,0,get_input_pointer);
+            ...
+            set_end_of_list;
+        execute_list(1);
+扫描位图
+    set_pixel_line指令打开像素输出模式，设置像素输出周期以及定义(dx,dy)
+    图像中的每一个点使用一个set_pixel指令创建.这条指令定义了LASERON信号的脉冲宽度.
+    此外，一个模拟输出信号可以通过ANALOG OUT2进行指定.
+Timing
+    T > LaserOn Delay + maximum pulse width
+    set_standby
+    set_laser_timing
+    set_pixel_line
+    Black-And-White Images
+    Greyscale Images
+        - 调整脉宽
+        - 调用激光功率
+        - 调整脉冲数
+Timed Jump And Mark Commands
+    跳转速度-跳转周期
+    timed_jump_abs
+    timed_jump_rel
+    timed_mark_abs
+    timed_mark_rel
+Automatic Self-Calibration
+    auto_cal(...,1)
+
+
+===================================================================================================
+Electrical Connections
+===================================================================================================
+9-pin D-SUB激光连接器
+    1-  LASER1
+    2-  LASERON/ANALOG OUT2 *
+    3-  LASER2
+    4-  +5V/ANALOG OUT2 *
+    5-  GND
+    6-  GND2
+    7-  GND2
+    8-  /START
+    9-  /STOP
+
+    RTC4提供了两个通用模拟输出引脚,ANALOG OUT1 & ANALOG OUT2
+    write_da_x/write_da_x_list
+    分辨率10bit
+    ANALOG OUT1: 0v ~ 2.56V / 0v ~ 10 V
+    ANALOG OUT2: 0v ~ 10V
+
+    输出信号LASER1&LASER2取决于已选择的激光控制模式
+
+    外部控制信号/START /STOP(低电平有效)
+
+激光扩展连接器
+    8-bit数字输出端口
+    激光信号
+
+主扫描头连接器
+    25-pin D-SUB/XY2-100标准
+
+    控制信号
+    数字通道CHAN1-CHAN3传输控制信号到扫描头.
+    SYNC&CLOCK通道传输同步以及时钟信号到扫描系统
+    CHAN3通道可选择性的控制第三个轴，在三轴系统中
+    
+    状态信号
+    STATUS通道接收扫描系统返回的兼容XY2-100标准的状态信号
+
+第二扫描头连接器
+    26-pin连接器
+
+数据线缆
+    为了连接扫描头到RTC4，需要一条数据线缆
+
+光纤数据接口（可选）
+    此数据接口将电信号转换为波长650nm的光信号
+
+扩展1连接器
+    16-bit数字TTL输入以及带缓冲的16-bit数字TTL输出
+    16-bit数字输入输出
+    write_io_port_list/write_io_port
+    read_io_port/get_io_status
+    set_io_cond_list/clear_io_cond_list
+    list_jump_cond/list_call_cond
+
+BUSY Statuso
+    pin(36),应用当前正在执行时为HIGH
+
+
+
+OPTIONS
+    get_rtc_version提供了options相关的信息
+
+    I/O扩展板
+    Second Scan Head Connector
+    Processing-on-the-fly
+    Controlling the Third Axis of a 3-Axis System
+    Optical Data Interface
+    Optoelectronic Couplers
+
+
+
+Installation And Start-Up
+    1. 配置RTC4 jumpers
+    2. 安装RTC4
+    3. 安装RTC4 软件驱动
+
+    Jumper X10      Laser Signal Logic
+    open            active-low(低电平表示逻辑‘1’)
+    closed          active-high(高电平表示逻辑'1')
+
+    jumper          function        position1-2     position2-3
+    x6              pin(4)          +5V             ANALOG/OUT1
+    x7              pin(2)          LASERON         ANALOG/OUT2
+    x3              ANAlOG OUT1     0...2.56v       0...10v
+
+    Digital Output Port(激光扩展连接器)
+    Installing the Hardware
+    Installing the Drivers
+    Start-Up and Functionality Test
+
+    PU  Pen Up      抬起画笔，后面的参数为X坐标Y坐标
+    PD  Pen Down    落下画笔，后面的参数为X坐标Y坐标
+    SP0 Select Pen 0不选择任何画笔，结束标志
+
+    PU指令提笔移动到图形单元的起点，即PU指令后面参数所表示的坐标点，
+    接着是一系列PD指令落笔画线，直线连接上一指令参数所表示的坐标点和这一指令参数所表示的坐标点
+    由于每个图形单元是连续的，所以画图形单元的程序都是一个PU指令加若干PD指令，最后一个PD
+    指令将画笔移动到图形单元的终点，如果图形单元是封闭的，那么最后一个PD指令将使画笔回到PU
+    指令开始的那一点.SP0表示图形文件所有坐标点绘制完毕，文件结束.
+
+    OPenGL是一个性能卓越的三维图形标准，作为一种硬件图形发生器的软件接口，它包括了模型绘制、
+    坐标变换、颜色模式设置、光照和材质设置、管理位图和图像增强、纹理映射、实时动画、交互技术
+    在内的8大功能和大约250个不同的函数，能够建立交互的三维场景和构造三维景物模型
+
+
+
+
+软件
+    安装软件，RTC4 application-support DLL
+    提供了所有必要的函数用于操作RTC4.
+    DLL命令以及函数集可以集成到用户的应用程序中.
+
+    DLL Calling Convention
+    Pascal::    RTC4Import.pas      goto_xy(1000,2500)
+    Basic::     RTC4Import.bas      call goto_xy(1000,2500)
+    C中你可以选择隐式链接-静态链接或者编译时动态连接，或者显示链接-动态加载或者运行时动态链接.
+    Implicit Linking::  RTC4impl.h + RTC4DLL.LIB                            goto_xy(1000,2500)
+    Explicit Linking::  RTC4expl.h + RTC4open/RTC4expl.cpp + RTC4close      goto_xy(1000,2500)
+
+    Initializing the RTC4
+    在每一个RTC4应用程序开始处，你需要执行如下步骤:
+    1.  Download the correction file(s) to the RTC4,load_correction_file
+    2.  Download the DSP program file,load_program_file
+    3.  Set the laser mode,set_laser_mode
+    4.  Assign the correction file(s) to the scan head control port(s) if nessary,select_cor_table
+    5.  Define the scanner delay mode,set_delay_mode
+    6.  Load a table for the variable polygon delay if necessary,load_varpolydelay
+    7.  Set the FirstPulseKiller length(YAG only),set_firstpulse_killer
+    8.  Set the stand-by pulses
+    9.  Load the list(s)
+    10. Enable the external start input if necessary,set_control_mode
+    The remaining settings(激光时序、激光延迟、扫描延迟、空走速度以及打印速度) are set by means of list commands.
+
+
+
+Demo Programs
+
+
+Commands And Functions
+    Control Commands
+        - Initialization And Field Correction
+            load_program_file
+            load_correction_file
+            select_cor_table
+            load_varpolydelay
+            dsp_start
+        - Laser Mode And Parameters
+            set_laser_mode
+            set_firstpulse_killer
+            set_softstart_level
+            set_softstart_mode
+            set_standby
+        - Scanner Delay Mode
+            set_delay_mode
+        - Coordinate Transformations
+            set_matrix
+            set_offset
+        - Status Monitoring and Diagnostics
+            get_head_status
+            get_value
+            get_waveform
+            measurement_status
+        - intelliSCAN Commands
+            control_command
+        - I/O commands
+            get_io_status
+            read_io_port
+            write_8bit_port
+            write_da_x
+            write_io_port
+        - External Control inputs
+            set_control_mode
+            select_list
+            set_max_counts
+            get_counts
+            get_startstop_info
+        - List Handling And Status
+            set_start_list
+            execute_list
+            stop_execution
+            stop_list
+            restart_list
+            get_status
+            read_status
+        - Synchronization Of Processing
+            get_wait_status
+            release_wait
+        - Automatic List Handing
+            auto_change
+            auto_change_pos
+            start_loop
+            quit_loop
+        - Circular Queue Mode
+            set_list_mode
+            get_list_space
+        - Structured Programming
+            set_input_pointer
+            get_input_pointer
+            execute_at_pointer
+        - Direct Laser And Scan Head Control
+            disable_laser
+            enable_laser
+            laser_signal_on
+            laser_signal_off
+            goto_xy
+            get_xy_pos
+            z_out
+        - Scanning Raster Images(Bitmaps)
+            read_pixel_ad
+        - Using Multiple RTC4 Boards In One Computer
+            rtc4_count_cards
+            select_rtc
+        - Other Control Commands
+            get_dll_version
+            get_hex_version
+            get_rtc_version
+            get_serial_number
+            home_position
+            get_hi_data
+            get_time
+            set_piso_control
+            auto_cal
+    List Commands
+        - Vector Commands
+            jump_abs
+            jump_rel
+            mark_abs
+            mark_rel
+            timed_jump_abs
+            timed_jump_rel
+            timed_mark_abs
+            timed_mark_rel
+        - Arc Commands
+            arc_abs
+            arc_rel
+        - Status Monitoring and Diagnostics
+            set_trigger
+        - External Control Inputs
+            set_control_mode_list
+        - List Handling
+            set_end_of_list
+            set_extstartpos_list
+        - Synchronization Of Processing
+            set_wait
+        - Structured Programming
+            set_list_jump
+            list_call
+            list_return
+            list_nop
+        - Setting The Laser Parameters
+            set_laser_timing
+            set_firstpulse_killer_list
+            set_standby_list
+        - Setting The Scanner Parameters
+            set_laser_delays
+            set_scanner_delays
+            set_jump_speed
+            set_mark_speed
+        - Coordinate Transformations
+            set_matrix_list
+            set_offset_list
+        - Direct Laser And Scan Head Control
+            laser_on_list
+            laser_signal_on_list
+            laser_signal_off_list
+            z_out_list
+        - Scanning Raster Images(Bitmaps)
+            set_pixel_line
+            set_pixel
+        - I/O Commands
+            clear_io_cond_list
+            list_call_cond
+            list_jump_cond
+            set_io_cond_list
+            write_8bit_port_list
+            write_da_x_list
+            write_io_port_list
+        - Other List Commands
+            long_delay
+            save_and_restart_timer
+            set_wobbel
+        short
+        signed 32-bit value                     [-2**31;+2**31-1]   long
+        pointer to a null-terminated
+        ANSI string, 1byte per char                                 char*
+        unsigned 16-bit value                   [0,65535]           unsigned short
+
+Data Types
+    Data Format                             Range               C
+    64-bit IEEE floating point format                           double
+    signed 16-bit value                     [-32768,+32767]     short
+    signed 32-bit value                     [-2**31;+2**31-1]   long
+    pointer to a null-terminated
+    ANSI string, 1byte per char                                 char*
+    unsigned 16-bit value                   [0,65535]           unsigned short
+            
+
+
+===================================================================================================
+激光连接头[X6/X7/X3/X10]
+    1   -   LASER1                  [CO2]modulation signal      [YAG]Q-switch signal
+    2   -   LASERON/ANALOG OUT2     [X7]LASERON                                     
+    3   -   LASER2                  [CO2]modulation signal      [YAG]FirstPulseKiller
+    4   -   +5v/ANALOG OUT1         [X6]ANALOG OUT1             [X3]0 ... 10 V      
+    5   -   GND
+    6   -   GND2
+    7   -   GND2
+    8   -   /START
+    9   -   /STOP
+    TTL Laser Signal,The Signal Logic depends on Jumper X10,default is active-low,reference to GND2,maximum current load is 10mA
+        -   LASERON
+        -   LASER1/Q-Switch
+        -   LASER2/FirstPulseKiller
+    Analog Output,loaded with commands write_da_x/write_da_x_list,referenced to GND,maximum current load is 5mA
+        -   ANALOG OUT1
+        -   ANALOG OUT2
+    External Control Signal,TTL active-low,reference to GND
+        -   /START
+        -   /STOP
+===================================================================================================
+激光扩展连接头[X8/X9]
+    1   -   L0                  2   -   GND
+    3   -   L1                  4   -   NA
+    5   -   L2                  6   -   +5V
+    7   -   L3                  8   -   NA
+    9   -   L4                  10  -   NA
+    11  -   L5                  12  -   NA
+    13  -   L6                  14  -   NA
+    15  -   +5V/L7/GND          16  -   NA
+    17  -   +5V/L7/GND          18  -   +5V
+    19  -   LASER2              20  -   21
+    21  -   20                  22  -   LASER1
+    23  -   GND                 24  -   NA
+    25  -   +5V                 26  -   NA
+    bufferd 8-bit digital output,TTL level is intended for YAG lasers with a digitall lamp current control,
+    However,it can be used for any other purpose as well. write_8_bit_port/write_8bit_port_list load the digital
+    output port with an 8-bit value.
+        -   L0 ~ L7
+        [X8]                    [X9]
+        Pin(15)                 Pin(17)
+        HIGH                    HIGH
+        L7                      L7
+        LOW                     LOW
+===================================================================================================
+主扫描头连接器                  13  -   NA
+    25  -   NA                  12  -   NA
+    24  -   GND                 11  -   GND
+    23  -   GND                 10  -   NA
+    22  -   NA                  9   -   NA
+    21  -   STATUS1+            8   -   STATUS1-    (Pin21-Pin8 can only be used together with intlliSCAN scan systems)
+    20  -   NA                  7   -   NA
+    19  -   STATUS+             6   -   STATUS-
+    18  -   (optional)CHAN3+    5   -   (optional)CHAN3-
+    17  -   CHAN2+              4   -   CHAN2-
+    16  -   CHAN1+              3   -   CHAN1-
+    15  -   SYNC+               2   -   SYNC-
+    14  -   CLOCK+              1   -   CLOCK-
+    Control Signals
+        -   Data channels CHAN1 through CHAN3 transmit control values to the scan head
+            the SYNC and CLOCK channels transmit synchronization and clock signals to the scan system
+            The CHAN3 channel is optionally provided for controlling a third axis in a 3-axis system
+    Status Signals
+        -   The STATUS channel receives XY2-100 standard compliant status signals returned by the scan system
+===================================================================================================
+Secondary Scan Head Connector
+    1   -   CLOCK-              2   -   CLOCK+
+    3   -   SYNC-               4   -   SYNC+
+    5   -   CHAN1-              6   -   CHAN1+
+    7   -   CHAN2-              8   -   CHAN2+
+    9   -   CHAN3-              10  -   CHAN3+
+    11  -   STATUS-             12  -   STATUS+     (Pin11-Pin12 can oly be used together with intelliSCAN scan systems)
+    13  -   NA                  14  -   NA
+    15  -   STATUS1-            16  -   STATUS1+
+    17  -   NA                  18  -   NA
+    19  -   NA                  20  -   GND
+    21  -   GND                 22  -   GND
+    23  -   NA                  24  -   NA
+    25  -   NA                  26  -   NA
+===================================================================================================
+
+
+
+
+
+
+programming
+===================================================================================================
+    set_list_mode(1);       // from now on, the list buffers are configured as a circular queue
+
+    set_laser_timing        //设置激光功率
+    set_scanner_delays      //设置三种延迟jump-mark-polygon
+    set_laser_delays        //设置激光开启以及关闭延迟
+    set_jump_speed
+    set_mark_speed
+
+    PlotFlush();            // Execute the list commands in the circular queue and tell about the wait period.
+    do {
+        get_status(&busy, &position);
+    } while(busy);          //Wait as long the execution is finished, before launching PlotLine
+
+    while(!PlotLine(point, &start)) {   //尝试插入一条命令到list中，直到成功为止.
+        if(kbhit()) {                   //处理按键事件
+            switch(ch) {
+                case '1' ~ '9':         // Frequency ratio setup requested
+                    break;
+                case 'f': case 'F':     // Buffer flushing requested
+                    if(stopped) restart_list();
+                    CarryOn = 0;
+                    break;
+                case 's': case 'S':     // Sudden suspending requested
+                    stop_list();
+                    stopped = 1;
+                    break;
+                case 'r': case 'R':     // Resume to plot
+                    restart_list();
+                    enable_laser();
+                    stopped = 0;
+                    eventOff = 0;
+                    break;
+                case 'o': case 'O':     // Stop request
+                    disable_laser();
+                    if(stopped) restart_list();
+                    stop_execution();
+                    do {
+                        get_xy_pos(&currentX, &currentY);
+                    } while( currentX != BeamDump.xval || currentY != BeamDump.yval);
+                    stop_list();
+                    stopped = 1;
+                    i = -1;
+                    eventOff = start = 1;
+                    break;
+                default:            // Halt and terminate
+                    disable_laser();
+                    if(stopped) restart_list();
+                    stop_execution();
+                    eventOff = 1;
+                    CarryOn = 0;
+                    break;
+            }
+        }
+        if(eventOff || start) break;
+    }
+    if(!eventOff)    PlotFlush();   // Flush the circular queue, on request.
+---------------------------------------------------------------------------------------------------
+void PlotFlush(void) {          //The call of that function ensures to empty and to execute the remaining contents of the circular queue.
+    while(!get_list_space()) ;  //不断的执行get_list_space直到get_list_space返回非零值.显然第一次进来时直接返回非零值.
+    set_end_of_list();          //关闭当前打开list
+    ListSpace = 0;              //设置全局标志
+}
+unsigned short ListSpace = 0;
+int PlotLine(const locus &destination, unsigned *start) {   //Function "PlotLine" tries to transfer a line to the circular queue.
+    if(!ListSpace) {                    //如果ListSpace = 0,表示刚刚进行过PlotFlush操作
+        ListSpace = get_list_space();   //重新初始化ListSpace
+        if(!ListSpace){
+            return(0);                  //当前无可用list,直接返回
+        }
+    }
+    ListSpace--;                        //向list加入一条命令，同时更新ListSpace计数
+    if(*start) {                        //跳转命令
+        jump_abs(destination.xval, destination.yval);
+        *start = 0;
+    }else{                              //绘图命令
+        mark_abs(destination.xval, destination.yval);
+    }
+    return(1);                          //已成功向list加入一条命令
+}

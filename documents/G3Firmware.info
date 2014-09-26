@@ -1,0 +1,318 @@
+G3Firmware/firmware/src/Motherboard/boards/mb24/Motherboard.hh
+G3Firmware/firmware/src/Motherboard/boards/mb24/Motherboard.cc
+---------------------------------------------------------------------------------------------------
+    class Motherboard {
+    private:
+            static Motherboard motherboard;
+    public:
+            static Motherboard& getBoard() { return motherboard; }
+    private:
+            StepperInterface stepper[STEPPER_COUNT];
+            volatile micros_t micros;
+            Motherboard();
+            Timeout interface_update_timeout;
+            bool hasInterfaceBoard;
+            ButtonArray buttonArray;
+            LiquidCrystal lcd;
+            InterfaceBoard interfaceBoard;
+            MainMenu mainMenu;              ///< Main system menu
+            SplashScreen splashScreen;      ///< Displayed at startup
+            MonitorMode monitorMode;        ///< Displayed during build
+    public:
+            void reset();
+            void runMotherboardSlice();
+            const int getStepperCount() const { return STEPPER_COUNT; }
+            StepperInterface& getStepperInterface(int n){
+                return stepper[n];
+            }
+            micros_t getCurrentMicros();
+            void indicateError(int errorCode);
+            uint8_t getCurrentError();
+            void doInterrupt();
+    };
+    *************************************************************************************************** 
+    /// Instantiate static motherboard instance      
+    Motherboard Motherboard::motherboard;
+
+    /// Create motherboard object
+    InterfaceBoard      --> G3Firmware/firmware/src/shared/InterfaceBoard.[cc,hh]
+                            G3Firmware/firmware/src/shared/ButtonArray.hh
+                            G3Firmware/firmware/src/shared/Menu.[cc,hh]
+    LiquidCrystal       --> G3Firmware/firmware/src/shared/LiquidCrystal.[cc,hh]
+    StepperInterface    --> G3Firmware/firmware/src/shared/StepperInterface.[cc,hh]
+    
+
+
+
+
+G3Firmware/firmware/build/mb24/Motherboard/Steppers.hh
+G3Firmware/firmware/build/mb24/Motherboard/Steppers.cc
+---------------------------------------------------------------------------------------------------
+    namespace steppers {
+        void init(Motherboard& motherboard);
+        bool isRunning();
+        void abort();
+        void enableAxis(uint8_t index, bool enable);
+        void setTarget(const Point& target, int32_t dda_interval);
+        void setTargetNew(const Point& target,
+                          int32_t ms,
+                          uint8_t relative =0);
+        void startHoming(const bool maximums,
+                         const uint8_t axes_enabled,
+                         const uint32_t us_per_step);
+        void definePosition(const Point& position);
+        bool doInterrupt();
+        const Point getPosition();
+        void setHoldZ(bool holdZ);
+    };
+    *************************************************************************************************** 
+    StepperAxis axes[STEPPER_COUNT]     --> G3Firmware/firmware/src/shared/StepperAxis.[cc,hh]
+
+
+
+
+
+
+
+G3Firmware/firmware/build/mb24/Motherboard/Main.cc
+---------------------------------------------------------------------------------------------------
+    void reset(bool hard_reset) {
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            Motherboard& board = Motherboard::getBoard();
+            sdcard::reset();
+            steppers::abort();
+            command::reset();
+            eeprom::init();
+            board.reset();
+            sei();
+            // If we've just come from a hard reset, wait for 2.5 seconds before
+            // trying to ping an extruder.  This gives the extruder time to boot
+            // before we send it a packet.
+            if (hard_reset) {
+                Timeout t;
+                t.start(1000L*2500L); // wait for 2500 ms
+                while (!t.hasElapsed());
+                tool::test(); // Run test
+            }
+            if (!tool::reset())
+            {
+                // Fail, but let it go; toggling the PSU is dangerous.
+            }
+        }
+    }
+
+    int main() {
+        Motherboard& board = Motherboard::getBoard();
+        steppers::init(Motherboard::getBoard());
+        reset(true);
+        sei();
+        while (1) {
+            // Toolhead interaction thread.
+            tool::runToolSlice();               
+            // Host interaction thread.
+            host::runHostSlice();
+            // Command handling thread.
+            command::runCommandSlice();
+            // Motherboard slice
+            board.runMotherboardSlice();
+        }
+        return 0;
+    }
+
+
+
+
+
+
+HOST            Motherboard             Extruder
+                main                    1 - 同Motherboard交互线程 2 - 温度监控线程  
+                tool::runToolSlice      main -> runHostSlice -> processQueryPacket
+                host::runHostSlice              ExtruderBoard::getBoard().runExtruderSlice()
+                command::runCommandSlice
+                board.runMotherboardSlice
+                
+UART::getSlaveUART      G3Firmware/firmware/build/mb24/Motherboard/Tool.cc
+UART::getHostUART       G3Firmware/firmware/build/mb24/Motherboard/Host.cc
+
+SLAVE_CMD_VERSION                       读取固件版本
+SLAVE_CMD_GET_BUILD_NAME                读取编译名称
+SLAVE_CMD_INIT                          初始化
+SLAVE_CMD_GET_TEMP                      读取当前的温度
+SLAVE_CMD_SET_TEMP                      设置目标温度
+SLAVE_CMD_READ_FROM_EEPROM              读EEPROM
+SLAVE_CMD_WRITE_TO_EEPROM               写EEPROM
+SLAVE_CMD_PAUSE_UNPAUSE                 暂停/恢复
+SLAVE_CMD_SET_MOTOR_1_PWM               设置电机1的PWM
+SLAVE_CMD_SET_MOTOR_1_DIR               设置电机1的方向
+SLAVE_CMD_TOGGLE_MOTOR_1                改变电机1的方向以及使能状态
+SLAVE_CMD_SET_MOTOR_1_RPM               设置电机1的转速
+SLAVE_CMD_TOGGLE_FAN                    开启/停止风扇
+SLAVE_CMD_TOGGLE_VALVE                  
+SLAVE_CMD_IS_TOOL_READY                 Extruder是否加热到目标温度
+SLAVE_CMD_GET_PLATFORM_TEMP             读取平台温度
+SLAVE_CMD_SET_PLATFORM_TEMP             设置平台温度
+SLAVE_CMD_SET_SERVO_1_POS               设置SERVO电机的位置
+SLAVE_CMD_SET_SERVO_2_POS
+SLAVE_CMD_GET_SP                        读取打印头的设定温度
+SLAVE_CMD_GET_PLATFORM_SP               读取平台的设定温度
+SLAVE_CMD_IS_PLATFORM_READY             平台是否加热到设定温度
+SLAVE_CMD_GET_TOOL_STATUS               状态查询
+SLAVE_CMD_GET_PID_STATE             
+SLAVE_CMD_GET_MOTOR_1_RPM
+SLAVE_CMD_GET_MOTOR_1_PWM
+SLAVE_CMD_LIGHT_INDICATOR_LED           点亮指示灯
+
+
+
+主板
+===================================================================================================
+while (1) {
+    // Toolhead interaction thread.
+    tool::runToolSlice();               监视打印头控制器的通过UART上报的消息是否有超时或者错误出现 
+    // Host interaction thread.
+    host::runHostSlice();               接收来自PC端的串口命令并分类处理,并将处理结果反馈给PC
+                                        processDebugPacket:     调试packet
+                                        processCommandPacket:   命令packet,将命令暂存到队列
+                                        processQueryPacket:     查询packet,必要时需要委托给slave board处理
+                                        未知packet返回RC_CMD_UNSUPPORTED
+    // Command handling thread.
+    command::runCommandSlice();         执行命令队列中缓存的命令
+    // Motherboard slice
+    board.runMotherboardSlice();        在显示屏上更新当前的系统信息以及主菜单
+}
+辅板
+===================================================================================================
+while (1) {
+    // Host interaction thread.
+    runHostSlice();                     接收并处理来自Motherboard的串口命令，跟Motherboard处理PC命令一致.
+    // Temperature monitoring thread
+    ExtruderBoard::getBoard().runExtruderSlice();   
+                                        motor_controller.update()
+                                        extruder_heater.manage_temperature()
+                                        platform_heater.manage_temperature()
+}
+
+
+main -> reset -> tool::test -> getToolVersion                      ---> startTransaction
+                               setToolIndicatorLED              ___|
+                 tool::reset                                    ___|
+        runHostSlice -> processQueryPacket -> handleToolQuery   ___|
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------
+电机速度以及方向控制
+---------------------------------------------------------------------------------------------------
+MotorController::setSpeed           speed = speed_in;set_with_rpm = false;
+MotorController::setRPMSpeed        rpm = speed_in;set_with_rpm = true;
+MotorController::setDir             direction = dir_in;
+MotorController::setOn              on = on_in;
+MotorController::pause              paused = !paused;
+MotorController::update             执行上述操作
+---------------------------------------------------------------------------------------------------
+加热控制器
+---------------------------------------------------------------------------------------------------
+Heater::reset                       next_pid_timeout.start(UPDATE_INTERVAL_MICROS);
+	                                next_sense_timeout.start(sample_interval_micros);
+Heater::manage_temperature          每次next_sense_timeout超时后进行温度采样
+                                    每次next_pid_timeout超时后进行PID（闭环控制算法)
+
+Heater::Heater                      TemperatureSensor& sensor_in,
+                                    HeatingElement& element_in,
+                                    micros_t sample_interval_micros_in,
+                                    uint16_t eeprom_base_in
+
+extruder_heater                     extruder_thermistor
+                                    extruder_element
+                                    SAMPLE_INTERVAL_MICROS_THERMISTOR
+                                    eeprom::EXTRUDER_PID_BASE
+
+platform_heater                     platform_thermistor
+                                    platform_element
+                                    SAMPLE_INTERVAL_MICROS_THERMISTOR,
+                                    eeprom::HBP_PID_BASE
+---------------------------------------------------------------------------------------------------
+PID算法
+---------------------------------------------------------------------------------------------------
+PID是一个闭环控制算法.实现PID算法，必须在硬件上具有闭环控制，就是得有反馈.
+比如控制一个电机的转速，就得有一个测量速度的传感器，并将结果反馈到控制路线上.
+PID是比例(P)、积分(I)、微分(D)控制算法.
+    比例    -   反映系统的基本偏差，系数大，可以加快调节，减小误差
+                过大的比列使得系统的稳定性下降，甚至造成系统不稳定
+    积分    -   反映系统的累计偏差，使系统消除稳态误差，提高无差度
+                因为有误差，积分调节就进行，直至无误差
+    微分    -   反映系统偏差系统的变化率，具有预见性，能预见偏差变化的趋势
+                产生超前的控制作用，在偏差还没有形成之前，已被微分调节作用消除
+                因此可以改善系统的动态性能.
+                但微分对噪声干扰有放大作用，加强微分对系统抗干扰不利.
+                积分与微分都不能单独起作用，必须与比例控制配合.
+
+
+---------------------------------------------------------------------------------------------------
+Generation 3 Electronics Diagram
+---------------------------------------------------------------------------------------------------
+                                Linux/Mac/Windows Box
+
+                    
+                                RepRap Motherboard V1.x         Stepper Motor Driver(V1.x or V2.x)  
+Extruder Controller V2.x        a. RS485 Communications         a. Opto Endstop 
+                                b. Sanguino powered             
+                                c. IDC Stepper connectors
+                                d. I2C headers
+                                e. SD Card enabled
+                                f. Standard headers
+
+
+                                ATX Power Supply(12V)
+
+
+
+Motherboard1.2::Stepper-Motor-Headers   --IDC cable-->  StepperMotorDriver::IDC Connector
+                                                                          ::10K 可调电位器
+                                                                          ::电源连接器
+                                                                          ::步进电机连接头
+                                                                          ::Max and Min连接头
+ExtruderController2.2::10K可调电位器
+                     ::16MHz震荡器
+                     ::复位按钮
+                     ::串口连接头
+                     ::I2C连接头
+                     ::额外的连接头(预留)
+                     ::伺服电机连接头
+                     ::ICSP连接头
+                     ::Quadrature Header
+                     ::H-Bridge Terminals
+                     ::热敏电阻
+                     ::MOSFET
+                     ::电源以及RS485
+
+Motherboard1.2::16MHz震荡器
+              ::复位按钮
+              ::ICSP连接头
+              ::On/Off-SPDT开关
+              ::X/Y/Z步进电机连接头以及JTAG
+              ::I2C-4pin母连接头
+              ::10-pin母连接头
+              ::6-pin串口连接头
+              ::R17-30欧母/5W电源电阻
+              ::ATX Motherboard Header
+              ::RJ45 Connectors
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

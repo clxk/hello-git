@@ -1,0 +1,131 @@
+Basic
+---------------------------------------------------------------------------------------------------
+    Quality(质量)
+        Layer height(mm)                //层厚
+        Shell thickness(mm)             //外壳的厚度与喷嘴尺寸共同决定了外壳的走线圈数
+        Enable retraction               //熔丝回抽使能，用于喷嘴路过非打印区域时
+    Fill(填充)
+        Bottom/Top thickness(mm)        //顶层与底层的厚度设置(100%填充层)
+        Fill density                    //填充密度
+    Speed and Temperature(速度与温度)
+        Print speed(mm/s)               //打印速度
+        Printing temperature            //喷嘴温度设置
+        Bed temperature                 //热床温度设置
+    Support(支撑)
+        Support type                    //支撑类型
+        Platform adhesion type          //底座类型
+    Filament(熔丝)
+        Diameter(mm)                    //熔丝直径
+        Flow(%)                         //熔丝补偿
+Advanced
+---------------------------------------------------------------------------------------------------
+    Machine(机器)
+        Nozzle size(mm)                 //喷嘴直径
+    Retraction(熔丝回抽)
+        Speed(mm/s)                     //回轴速度
+        Distance(mm)                    //回抽距离
+    Quality(质量)
+        Initial layer thickness(mm)     //底层厚度，更厚的底层可以带来更好的粘接
+        Cut off object bottom(mm)       //使对象下沉到平台的可移除层厚度
+        Dual extrusion overlap(mm)      //双打印头打印时，走线的重合度
+    Speed(速度)
+        Travel speed(mm/s)              //空走速度
+        Bottom layer speed(mm/s)        //底层打印速度，越慢越容易粘接平台
+        Infill speed(mm/s)              //内部填充速度设置
+    Cool
+        Minimal layer time(sec)         //打印一层最小的耗时，以便于更好的冷却
+        Enable cooling fan              //使能冷却风扇
+Expert config
+---------------------------------------------------------------------------------------------------
+    Retraction(熔丝回抽)
+        Minimum travel(mm)              //熔丝回抽距离门槛
+        Enable combing                  //自动填补孔洞？
+        Minimal extrusion before retra..//回轴之间最小的挤出量设定
+    Skirt
+        Line count                      //裙边的线数
+        Start distance                  //群边距离物体的最小距离
+        Minimal length                  //群边的最小长度
+    Cool
+        Fan full on at height           //在这个高度上风扇开到最大
+        Fan speed min(%)                //风扇最小强度
+        Fan speed max(%)                //风扇最大强度
+        Minimum speed(mm/s)             //减速所能够到达的最小值
+        Cool head lift                  
+    Infill
+        Solid infill top                //顶层实体填充
+        Solid infill bottom             //底层实体填充
+        Infill overlap(%)               //外壳与填充的重叠程度
+    Support
+        Fill amount(%)                  //支撑的填充比率
+        Distance X/Y(mm)                //x,y方向上支撑距离实体的距离
+    Spiralize       
+        Spiralize the outer contour
+    Brim
+        Brim line amount                
+    Raft
+        Extra margin(mm)                //底座超出物体的部分
+        Line spacing(mm)                //走线间距
+        Base thickness(mm)              //底座的层厚
+        Base line width(mm)             //底座的走线宽度
+        Interface thickness(mm)         //接口层厚度
+        Interface line width(mm)        //接口层线宽
+    Fix horrible
+===================================================================================================
+config.filamentDiameter = 2890;                                     //熔丝直径
+config.filamentFlow = 100;                                          //熔丝补偿,100%
+config.initialLayerThickness = 300;                                 //底层层厚,越厚越容易粘接到底板,0.3mm
+config.layerThickness = 100;                                        //层厚,0.1mm
+config.extrusionWidth = 400;                                        //挤出宽度,0.4mm
+config.insetCount = 2;
+config.downSkinCount = 6;
+config.upSkinCount = 6;
+config.initialSpeedupLayers = 4;
+config.initialLayerSpeed = 20;
+config.printSpeed = 50;
+config.infillSpeed = 50;
+config.moveSpeed = 200;
+config.fanFullOnLayerNr = 2;
+config.skirtDistance = 6000;
+config.skirtLineCount = 1;
+config.skirtMinLength = 0;
+config.sparseInfillLineDistance = 100 * config.extrusionWidth / 20;
+config.infillOverlap = 15;
+config.objectPosition.X = 102500;
+config.objectPosition.Y = 102500;
+config.objectSink = 0;
+config.supportAngle = -1;
+config.supportEverywhere = 0;
+config.supportLineDistance = config.sparseInfillLineDistance;
+config.supportExtruder = -1;
+config.supportXYDistance = 700;
+config.supportZDistance = 150;
+config.retractionAmount = 4500;
+config.retractionSpeed = 45;
+config.retractionAmountExtruderSwitch = 14500;
+config.retractionMinimalDistance = 1500;
+config.minimalExtrusionBeforeRetraction = 100;
+config.enableOozeShield = 0;
+config.enableCombing = 1;
+config.wipeTowerSize = 0;
+config.multiVolumeOverlap = 0;
+
+config.minimalLayerTime = 5;
+config.minimalFeedrate = 10;
+config.coolHeadLift = 1;
+config.fanSpeedMin = 100;
+config.fanSpeedMax = 100;
+
+config.raftMargin = 5000;
+config.raftLineSpacing = 1000;
+config.raftBaseThickness = 0;
+config.raftBaseLinewidth = 0;
+config.raftInterfaceThickness = 0;
+config.raftInterfaceLinewidth = 0;
+
+config.spiralizeMode = 0;
+config.fixHorrible = 0;
+config.gcodeFlavor = GCODE_FLAVOR_REPRAP;
+memset(config.extruderOffset, 0, sizeof(config.extruderOffset));
+
+config.startCode =
+config.endCode =

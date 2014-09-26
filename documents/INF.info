@@ -1,0 +1,101 @@
+Version
+    Version节通常作为INF文件的开始,所有INF文件都必须含有Version节及其Signature项
+===================================================================================================
+[Version]
+Signature="$Windows NT$"                            //指明驱动程序的签名，其取值为：$Windows NT$、$Windows 95$、$Chicago$、
+Class=Ports                                         //指明驱动程序所属的类别
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}    //指明设备类的GUID，其格式为：{nnnnnnnn-nnnn-nnnn-nnnnnnnnnnnn},端口（COM&LPT）
+Provider=%MFGNAME%                                  //指明该INF文件的供应商
+LayoutFile=layout.inf                               //仅由操作系统内部提供的INF文件使用
+CatalogFile=%MFGFILENAME%.cat                       //指明数字签名文件的文件名，其扩展名为.cat
+DriverVer=11/15/2007,5.1.2600.0                     //指明驱动程序的版本信息，其格式为：mm/dd/yyyy[,x.y.v.z]
+
+
+
+Manufacturer
+    Manufacturer节指明供应商及其对应Models接的名称，其各项的格式如下：
+        %strkey%=models-section-name
+    其中，“strkey”代表设备制造的名字，其字符串值在String节中定义；“models-section-name”指出Models节的名称。
+===================================================================================================
+[Manufacturer]
+%MFGNAME%=DeviceList, NTamd64
+
+
+
+Models
+    Models节指明Install/DDInstall节的名称、设备的硬件ID和兼容ID等信息，其节名称由Manufacturer节指定。其各项的格式如下：
+        device-description=install-section-name,hw-id[,compatiable-id…]
+    其中，“device-description”指出设备的表述信息，他可以是一个字符串，也可以使一个%strkey%；“install-section-name”
+    指出Install/DDInstall节的名称；“hw-id”指出设备的硬件ID；“compatiable-id”指出设备的兼容ID。
+===================================================================================================
+[SourceDisksFiles]
+[SourceDisksNames]
+[DeviceList]
+%DESCRIPTION%=DriverInstall, USB\VID_23C1&PID_B404
+[DeviceList.NTamd64]
+%DESCRIPTION%=DriverInstall, USB\VID_23C1&PID_B404
+
+
+
+Install/DDInstall
+    Install/DDInstall节指明需复制的文件、想注册表中添加的内容等信息，其节名称由Models节指定
+=================================================================================================== 
+[DriverInstall.nt]
+include=mdmcpq.inf                                  //指明安装时需要的其他INF文件，格式为： Include=filename.inf[,filename2.inf]…
+CopyFiles=DriverCopyFiles.nt                        //指明需复制的文件，格式为： 
+                                                    //CopyFiles=@filename|file-list-section[,file-list-section]...
+AddReg=DriverInstall.nt.AddReg                      //指明向注册表中添加的其他INF文件按，格式为：
+                                                    //AddReg=add-registry-section[,add-registry-section]…
+
+[DriverCopyFiles.nt]
+usbser.sys,,,0x20
+
+[DriverInstall.nt.AddReg]
+HKR,,DevLoader      ,,  *ntkern
+HKR,,NTMPDriver     ,,  %DRIVERFILENAME%.sys
+HKR,,EnumPropPages32,,  "MsPorts.dll,SerialPortPropPageProvider"
+
+
+
+DDInstall.Services
+    DDInstall.Services节指明驱动程序安装的详细信息，他只是用于Windows 2000.
+    他的节名称为[install-section-name.Services]，其“install-section-name”由Models节指定。
+===================================================================================================
+[DriverInstall.nt.Services]
+AddService=usbser, 0x00000002, DriverService.nt     //控制驱动程序的安装过程
+                                                    //ServiceName = usbser
+                                                    //flags = 0x00000002 = SPSVCINST_ASSOCSERVICE = 指明其为PnP功能驱动程序  
+[DriverService.nt]                                  //service-install-section
+DisplayName=%SERVICE%                               //驱动程序的名字，为字符串值
+ServiceType=1                                       //驱动程序的类型，为特定16进制数,SERVICE_BOOT_START = 内核模式驱动程序
+StartType=3                                         //驱动程序的启动类型，为特定16进制数,
+                                                    //SERVICE_DEMAND_START = 由PnP管理器或服务控制管理器按需启动
+ErrorControl=1                                      //驱动程序的差错控制级别，为特定16进制数,SERVICE_ERROR_NORMAL = 显示警告信息
+ServiceBinary=%12%\%DRIVERFILENAME%.sys             //驱动程序的完整路径名：%dirid% /filename,
+
+
+
+DestinationDirs
+     DestinationDirs节指明INF文件和设备驱动程序的目标目录。
+     当INF文件使用CopyFiles、DelFiles、RenFiles指令时，则必须包含该节。其各项的格式如下：
+        DefaultDestDir=dirid[,subdir]
+        File-list-section=dirid[,subdir]
+    其中，“DefaultDestDir”是一个项名称，代表文件复制、删除、重命名操作的缺色很难干目标目录；
+    “file-list-section”指出CopyFiles、DelFiles、RenFiles指令所引用的节；
+    “dirid”指出目标目录值，见下表；
+    “subdir”指出dirid目录下的子目录。
+    DestinationDirs节中的常用dirid
+===================================================================================================
+[DestinationDirs]
+DefaultDestDir=12                                   //驱动程序目录 
+                                                    //Windows 98:%windir%/system/IoSubsys 
+                                                    //Windows 2000:%windir%/system32/drivers
+
+
+[Strings]
+MFGFILENAME="CDC_vista"
+DRIVERFILENAME ="usbser"
+MFGNAME="MakerBot Industries"
+INSTDISK="MakerBot Driver Installer"
+DESCRIPTION="The Replicator, S3G via Serial" 
+SERVICE="USB RS-232 Emulation Driver"

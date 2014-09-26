@@ -1,0 +1,202 @@
+CuraEngine/settings.h
+CuraEngine/settings.cpp
+===================================================================================================
+class _ConfigSettingIndex{
+public:
+    const char* key;
+    int* ptr;
+    _ConfigSettingIndex(const char* key, int* ptr) : key(key), ptr(ptr) {}
+};
+class ConfigSettings{
+    private:
+        std::vector<_ConfigSettingIndex> _index;
+    public:
+        int layerThickness;
+        //......
+        ConfigSettings();
+        bool setSetting(const char* key, const char* value);
+}
+---------------------------------------------------------------------------------------------------
+
+
+CuraEngine/modelFile/modelFile.h
+===================================================================================================
+三角形面
+class SimpleFace{
+public:
+    Point3 v[3];
+    SimpleFace(Point3& v0, Point3& v1, Point3& v2) { v[0] = v0; v[1] = v1; v[2] = v2; }
+};
+简单三维物体
+class SimpleVolume{
+public:
+    vector<SimpleFace> faces;                       //所包含的三角形面
+    void addFace(Point3& v0, Point3& v1, Point3& v2)//添加三角形面
+    Point3 min()                                    //物体的最小空间坐标点
+    Point3 max()                                    //物体的最大空间坐标点
+}
+3D模型
+class SimpleModel{
+public:
+    vector<SimpleVolume> volumes;                   //3D模型就是简单三维物体的集合
+    Point3 min()                                    //3D模型的最小坐标点
+    Point3 max()                                    //3D模型的最大坐标点
+}
+---------------------------------------------------------------------------------------------------
+
+
+CuraEngine/optimizedModel.h
+===================================================================================================
+优化的面
+class OptimizedFace{
+public:
+    int index[3];                                   //三角面上的每个点在点集中的位置
+    int touching[3];                                //三角面的三条边是否闭合
+};
+优化的点
+class OptimizedPoint3{
+public:
+    Point3 p;                                       //空间点坐标
+    vector<uint32_t> faceIndexList;                 //此点在面集中的哪些面上
+    OptimizedPoint3(Point3 p): p(p) {}
+};
+优化的物体
+class OptimizedVolume{
+public:
+    OptimizedModel* model;                          //所属的模型
+    vector<OptimizedPoint3> points;                 //点向量集
+    vector<OptimizedFace> faces;                    //面向量集
+    OptimizedVolume(SimpleVolume* volume, OptimizedModel* model);
+    int getFaceIdxWithPoints(int idx0, int idx1, int notFaceIdx)
+}
+优化的模型
+class OptimizedModel{
+public:
+    vector<OptimizedVolume> volumes;                //优化后的三维物体向量
+    Point3 modelSize;                               //3D模型的最大尺寸
+    Point3 vMin, vMax;                              //3D模型的最大、小坐标点
+    OptimizedModel(SimpleModel* model, Point3 center){
+    }
+    void saveDebugSTL(const char* filename);
+}
+---------------------------------------------------------------------------------------------------
+
+
+CuraEngine/utils/floatpoint.h
+===================================================================================================
+空间坐标点
+class FPoint3{
+public:
+    double x,y,z;                                   //(x,y,z)
+    double max()                                    //x,y,z中的最大值
+    double vSize2()                                 //(x,y,z)到(0,0,0)距离的平方数
+    double vSize()                                  //(x,y,z)到(0,0,0)距离
+    bool testLength(double len)                     //长度测试
+}
+矩阵
+class FMatrix3x3{
+public:
+    double m[3][3];
+    FMatrix3x3()                                    
+    Point3 apply(FPoint3 p)                         //矩阵乘法
+}
+---------------------------------------------------------------------------------------------------
+
+
+STL二进制文件
+===================================================================================================
+0000000:
+            80个字节的头部
+0000050:    4个字节的faceCount
+0000054:    for(i=0;i<faceCount;i++){
+                sizeof(float) * 3,12个字节
+                sizeof(float) * 9,36个字节(x1,y1,z1),(x2,y2,z2),(x3,y3,z3),三个顶点.
+                sizeof(uint16_t),2个字节
+            }
+---------------------------------------------------------------------------------------------------
+
+
+
+数据结构
+===================================================================================================
+int main(int argc, char **argv){
+    ConfigSettings config;              //创建一个ConfigSettings对象，并执行其构造函数.
+                                        //ConfigSettings对象具有如下这么一个‘动态数组’
+                                        //std::vector<_ConfigSettingIndex> _index;
+                                        //数组中的每个元素都是一个_ConfigSettingIndex类型的对象
+                                        //其本质是键值对(key,value)
+                                        //因此,_index动态数组实质上将ConfigSettings对象的每个设置参数重组成键值对.
+                                        //显然,这个操作是在其构造函数中完成的.
+    fffProcessor processor(config);     //创建fffProcessor对象并进行初始化.
+                                        //首先,fffProcessor对象的私有成员包括一个指向ConfigSettings对象的指针
+                                        //其构造函数的入参用于初始化上述指针成员.
+                                        //其次,还完成了如下两个简单的初始化操作int maxObjectHeight; int fileNr;
+    config.xxx = XXX;                   //ConfigSettings对象赋值操作
+
+    processor.setTargetFile(argv[argn]) //打开输出文件
+                                        //GCodeExport gcode;作为fffProcessor对象的一个私有成员
+                                        //gcode.setFilename(filename);完成打开文件的操作
+                                        //gcode.addComment("Generated with Cura_SteamEngine %s", VERSION);向文件中写入一行数据
+    processor.processFile(argv[argn]);  //输入文件处理
+                                        //对象--TimeKeeper,记录一个起始时间点
+                                        //对象--SliceDataStorage,记录模型切片的尺寸、skirt、raftOutline、切层数据等等信息
+                                        //裙边、内壁、外壁、填充、支撑的打印速度以及挤出宽度;挤出头偏移、gcode类型、熔丝回抽等配置.
+                                        //TimeKeeper timeKeeper;fffProcessor对象内部的计时器
+                                        //prepareModel(storage, input_filename)读取输入文件数据转换为切片数据
+                                        //  loadModel(input_filename, config.matrix)模型加载
+                                        //  OptimizedModel分析以及优化模型
+                                        //  Slicer对模型进行切片
+                                        //  generateSupportGrid生成支撑
+                                        //  createLayerParts生成层数据
+                                        //processSliceData(storage);处理切片数据
+                                        //writeGCode(storage);生成gcode文件
+    processor.finalize();               //结束
+}
+
+模型加载
+---------------------------------------------------------------------------------------------------
+SimpleModel* loadModel(const char* filename, FMatrix3x3& matrix);
+class SimpleModel{
+public:
+    vector<SimpleVolume> volumes;       //一个简单的模型是由一组简单的volumes组成的.
+                                        //vector<SimpleFace> faces;每一个简单的volume是由一组faces组成的.
+                                        //  Point3 min()每个faces中最小的点
+                                        //  Point3 max()每个faces中最大的点
+                                        //Point3 v[3];每一个face是由三个点组成的.
+    Point3 min()                        //模型中最小的点
+    Point3 max()                        //模型中最大的点
+}
+模型优化
+---------------------------------------------------------------------------------------------------
+OptimizedModel::OptimizedModel(SimpleModel* model, Point3 center)
+class OptimizedModel{
+public:
+    vector<OptimizedVolume> volumes;    //一个优化后的模型是由一组优化后的volumes组成的.
+                                        //OptimizedModel* model;每一优化后的volume会记录其所属的模型
+                                        //vector<OptimizedPoint3> points; vector<OptimizedFace> faces;
+                                        //每一个优化后的volume是由一组优化后的点和面组成的
+                                        //OptimizedVolume每一个优化后的volume对象提供volume的优化接口.
+                                        //points.reserve(volume->faces.size() * 3);所有点的集合
+                                        //faces.reserve(volume->faces.size());所有面的集合
+                                        //std::map<uint32_t, std::vector<uint32_t> > indexMap;哈希表
+                                        //遍历一个简单物体的每一个面上的每一个点:
+                                        //      建立点集(points),距离很近的点会被当作同一个点.并记录每个点都在哪些面上.(去除同点)
+                                        //      建立面集(faces),记录每个三角面上的三个点在点集(points)中的idx.(去除同面)
+                                        //      统计非闭合面的个数
+    Point3 modelSize;
+    Point3 vMin, vMax;
+    OptimizedModel(SimpleModel* model, Point3 center)
+    void saveDebugSTL(const char* filename);
+}
+模型切片
+---------------------------------------------------------------------------------------------------
+Slicer::Slicer(OptimizedVolume* ov, int32_t initial, int32_t thickness, bool keepNoneClosed, bool extensiveStitching);
+class Slicer{
+public:
+    std::vector<SlicerLayer> layers;    //遍历模型的每一个面for(unsigned int i=0; i<ov->faces.size(); i++)
+                                        //计算此面在所有切层上的sliceSegment,（起点,终点,faceIndex)
+                                        //对于每一个切层:
+                                        //      std::vector<SlicerSegment> segmentList;切线列表
+                                        //      std::map<int, int> faceToSegmentIndex;(层,切线id)键值对
+                                        //makePolygons
+}

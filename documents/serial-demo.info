@@ -1,0 +1,180 @@
+serialAPIdemo
+├── AndroidManifest.xml
+├── assets
+├── bin
+│   ├── AndroidManifest.xml
+│   ├── AndroidManifest.xml.svntmp
+│   ├── classes
+│   │   └── com
+│   │       └── dwin
+│   │           └── navy
+│   │               └── serialapi
+│   │                   ├── BuildConfig.class
+│   │                   ├── MainActivity$1.class
+│   │                   ├── MainActivity$BtnClearOnClickListener.class
+│   │                   ├── MainActivity$BtnSendOnClickListener.class
+│   │                   ├── MainActivity.class
+│   │                   ├── MainActivity$ReadThread.class
+│   │                   ├── MainActivity$SendThread.class
+│   │                   ├── MainActivity$SpiOnItemSelectedListenerImpl.class
+│   │                   ├── MainActivity$TimerSendThread.class
+│   │                   ├── MainActivity$TogBtnOnCheckedChangeListenerImpl.class
+│   │                   ├── R$attr.class
+│   │                   ├── R.class
+│   │                   ├── R$dimen.class
+│   │                   ├── R$drawable.class
+│   │                   ├── R$id.class
+│   │                   ├── R$layout.class
+│   │                   ├── R$menu.class
+│   │                   ├── R$string.class
+│   │                   └── R$style.class
+│   ├── classes.dex
+│   ├── dexedLibs
+│   │   ├── android-support-v4-bd9654eeee7ce763db91945b6a4e830e.jar
+│   │   └── dwin-serialportapi-v1.1-5f5b27e52f207383a46d3675f868d693.jar
+│   ├── jarlist.cache
+│   ├── res
+│   │   └── crunch
+│   │       ├── drawable-hdpi
+│   │       │   ├── ic_launcher.png
+│   │       │   └── icon.png
+│   │       ├── drawable-ldpi
+│   │       │   └── icon.png
+│   │       ├── drawable-mdpi
+│   │       │   ├── ic_launcher.png
+│   │       │   └── icon.png
+│   │       ├── drawable-xhdpi
+│   │       │   └── ic_launcher.png
+│   │       └── drawable-xxhdpi
+│   │           └── ic_launcher.png
+│   ├── resources.ap_
+│   └── serialAPIdemo.apk
+├── gen
+│   └── com
+│       └── dwin
+│           └── navy
+│               └── serialapi
+│                   ├── BuildConfig.java
+│                   └── R.java
+├── ic_launcher-web.png
+├── libs
+│   ├── android-support-v4.jar
+│   ├── dwin-serialportapi-v1.1.jar
+│   └── mips
+│       └── libserialport.so
+├── proguard-project.txt
+├── project.properties
+├── res
+│   ├── drawable-hdpi
+│   │   ├── ic_launcher.png
+│   │   └── icon.png
+│   ├── drawable-ldpi
+│   │   └── icon.png
+│   ├── drawable-mdpi
+│   │   ├── ic_launcher.png
+│   │   └── icon.png
+│   ├── drawable-xhdpi
+│   │   └── ic_launcher.png
+│   ├── drawable-xxhdpi
+│   │   └── ic_launcher.png
+│   ├── layout
+│   │   └── activity_main.xml
+│   ├── menu
+│   │   └── main.xml
+│   ├── values
+│   │   ├── dimens.xml
+│   │   ├── strings.xml
+│   │   └── styles.xml
+│   ├── values-sw600dp
+│   │   └── dimens.xml
+│   ├── values-sw720dp-land
+│   │   └── dimens.xml
+│   ├── values-v11
+│   │   └── styles.xml
+│   └── values-v14
+│       └── styles.xml
+└── src
+    └── com
+        └── dwin
+            └── navy
+                └── serialapi
+                    └── MainActivity.java
+===================================================================================================
+MainActivity.java
+===================================================================================================
+package com.dwin.navy.serialapi;
+import  com.dwin.navy.serialportapi.SerialPortOpt;
+public class MainActivity extends Activity {
+	private SerialPortOpt serialPort;
+    --------------------------------------------------------------------------------------------------- 
+	protected void onCreate(Bundle savedInstanceState) {
+		serialPort              = new SerialPortOpt();
+
+		serialPort.mDevNum      = m_iSerialPort[0];
+		serialPort.mSpeed       = baudrate[0];
+		serialPort.mDataBits    = databits[3];
+		serialPort.mStopBits    = stopbits[1];
+		serialPort.mParity      = parity[0];
+    }
+    ---------------------------------------------------------------------------------------------------
+	@Override
+	protected void onDestroy() {
+		// TODO Auto-generated method stub
+		Log.i(TAG, "==>onDestroy in");
+		closeSerialPort();
+		serialPort = null;
+		super.onDestroy();
+		Log.i(TAG, "==>onDestroy out");
+	}
+    --------------------------------------------------------------------------------------------------- 
+	private void openSerialPort() {
+			serialPort.openDev(serialPort.mDevNum);
+			serialPort.setSpeed(serialPort.mFd, serialPort.mSpeed);
+			serialPort.setParity(serialPort.mFd, serialPort.mDataBits,
+                    serialPort.mStopBits, serialPort.mParity);
+
+			mInputStream    = serialPort.getInputStream();
+			mOutputStream   = serialPort.getOutputStream();
+
+			mReadThread = new ReadThread();
+			mReadThread.start();
+		}
+    }
+    ---------------------------------------------------------------------------------------------------
+    private void closeSerialPort() {
+        serialPort.closeDev(serialPort.mFd);
+    }
+    --------------------------------------------------------------------------------------------------- 
+	private class ReadThread extends Thread {
+        size = serialPort.readBytes(buf);
+    }
+    ---------------------------------------------------------------------------------------------------
+	private class SendThread extends Thread {
+        serialPort.writeBytes(src.getBytes());
+    }
+	private class TimerSendThread extends Thread {
+        serialPort.writeBytes(src.getBytes());
+    }
+===================================================================================================
+    onCreate [MainActivity]                                                 //打开-创建
+    onPause [MainActivity]                                                  //暂停
+    onStop [MainActivity]                                                   //停止
+    onDestroy [MainActivity]                                                //结束
+
+    openSerialPort [MainActivity]
+    closeSerialPort [MainActivity]
+    run [MainActivity.ReadThread]
+    onDataReceived [MainActivity]
+    bytesToHexString [MainActivity]
+    run [MainActivity.SendThread]
+    run [MainActivity.TimerSendThread]
+    setSleepTimer [MainActivity.TimerSendThread]
+    stopThread [MainActivity.TimerSendThread]
+    SendMsg [MainActivity]
+    uniteBytes [MainActivity]
+    HexString2Bytes [MainActivity]
+    onItemSelected [MainActivity.SpiOnItemSelectedListenerImpl]
+    onNothingSelected [MainActivity.SpiOnItemSelectedListenerImpl]
+    onClick [MainActivity.BtnClearOnClickListener]
+    onClick [MainActivity.BtnSendOnClickListener]
+    onCheckedChanged [MainActivity.TogBtnOnCheckedChangeListenerImpl]

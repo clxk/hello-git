@@ -1,0 +1,149 @@
+namespace Slic3r {
+    typedef std::string t_config_option_key;                        //字符串
+    typedef std::vector<std::string> t_config_option_keys;          //字符串数组
+    class ConfigOption {
+        serialize                                                   //序列化
+        deserialize                                                 //反序列化
+    }
+    class ConfigOptionFloat : public ConfigOption                   //浮点数序列化/反序列化
+    class ConfigOptionFloats : public ConfigOption                  //浮点数数组...
+    ConfigOptionInt [Slic3r]                                        //整数
+    ConfigOptionInts [Slic3r]                                       //整数数组
+    ConfigOptionString [Slic3r]                                     //字符串
+    ConfigOptionStrings [Slic3r]                                    //字符串数组
+    ConfigOptionFloatOrPercent [Slic3r]                             //浮点数以及分数
+    ConfigOptionPoint [Slic3r]                                      //点
+    ConfigOptionPoints [Slic3r]                                     //点数组
+    ConfigOptionBool [Slic3r]                                       //布尔型
+    ConfigOptionBools [Slic3r]                                      //布尔型数组
+    ConfigOptionEnum [Slic3r]                                       //枚举
+    ConfigOptionEnumGeneric [Slic3r]                                //通用枚举
+    class ConfigOptionDef{
+        public:
+            ConfigOptionType type;                                  //配置选项类型
+            ...
+    }
+===================================================================================================
+./xs/xsp/Config.xsp:5:          #include "PrintConfig.hpp"
+./xs/src/PrintConfig.cpp:1:     #include "PrintConfig.hpp"
+./xs/src/PrintConfig.hpp:4:     #include "Config.hpp"
+./xs/src/Config.cpp:1:          #include "Config.hpp"
+./xs/buildtmp/XS.c:8991:        #include "PrintConfig.hpp"
+./xs/MANIFEST:16:               src/Config.hpp
+./xs/MANIFEST:41:               src/PrintConfig.hpp
+---------------------------------------------------------------------------------------------------
+Binary file ./xs/src/Config.o matches
+Binary file ./xs/src/PrintConfig.o matches
+Binary file ./xs/blib/arch/auto/Slic3r/XS/XS.so matches
+Binary file ./xs/buildtmp/XS.o matches
+===================================================================================================
+Slic3r/Build.PL
+   --------------------------------------------------------------------------------------------------- 
+    if (!$gui) {
+        # clean xs directory before reinstalling, to make sure Build is called
+        # with current perl binary
+        if (-e './xs/Build') {
+            if ($^O eq 'MSWin32') {
+                system 'cd', 'xs';
+                system 'Build', 'distclean';
+                system 'cd', '..';
+            } else {
+                system './xs/Build', 'distclean';
+            }
+        }
+        my $res = system $cpanm, '--reinstall', './xs';
+        if ($res != 0) {
+            die "The XS/C++ code failed to compile, aborting\n";
+        }
+    }
+   --------------------------------------------------------------------------------------------------- 
+Slic3r/xs/Build
+   --------------------------------------------------------------------------------------------------- 
+    my $build = Module::Build::WithXSpp->resume (
+      properties => {
+        config_dir => '_build',
+        orig_dir => $orig_dir,
+      },
+    );
+    $build->dispatch;
+   --------------------------------------------------------------------------------------------------- 
+===================================================================================================
+    ./xs/buildtmp/main.xs
+    ---------------------------------------------------------------------------------------------------
+    ./xs/xsp/Config.xsp
+    ./xs/xsp/ExPolygonCollection.xsp
+    ./xs/xsp/Polyline.xsp
+    ./xs/xsp/SurfaceCollection.xsp
+    ./xs/xsp/Point.xsp
+    ./xs/xsp/ExtrusionPath.xsp
+    ./xs/xsp/ExtrusionEntityCollection.xsp
+    ./xs/xsp/ExtrusionLoop.xsp
+    ./xs/xsp/Surface.xsp
+    ./xs/xsp/PolylineCollection.xsp
+    ./xs/xsp/ExPolygon.xsp
+    ./xs/xsp/Geometry.xsp
+    ./xs/xsp/Print.xsp
+    ./xs/xsp/XS.xsp
+    ./xs/xsp/Line.xsp
+    ./xs/xsp/TriangleMesh.xsp
+    ./xs/xsp/Polygon.xsp
+    ./xs/xsp/Clipper.xsp
+    ---------------------------------------------------------------------------------------------------
+    ./xs/xsp/typemap.xspt
+===================================================================================================
+Perl 对 C 的扩展接口
+    XS 语言是一种用来在 Perl 和需要在 Perl 内使用的 C 代码（或者 C 库）之间创建扩展的接口描述文件格式。
+    XS 接口为 C 库链接创建了一个静态链接到 Perl 或者能被 Perl 动态导入的新库。
+    本文的主要目的是介绍如何在 Unix 环境下编写 XS 接口并成功通过编译，
+    从而实现 Perl 对 C 的扩展，提高代码重用率。
+引言
+    本文面向 Perl 和 C 的开发人员，旨在通过对 Perl 与 C 之间的 XS 扩展接口的介绍，
+    让读者了解到通过 Perl 调用 C 函数的一种方法。为了更好的理解本文，读者需要具备一定的 
+    Perl 和 C 编程经验，并对 Unix 环境下库文件的编译过程和 Makefile 语法有所了解。
+什么是 XS 语言
+    XS 是一个用来在 Perl 和需要在 Perl 内使用的 C 代码（或者 C 库）之间创建扩展的接口描述文件格式。
+    XS 接口为 C 库链接创建了一个静态链接到 Perl 或者能被 Perl 动态导入的新库。
+    XS 接口描述是用 XS 语言写的，是 Perl 扩展接口的核心部分。
+    当 Perl 代码调用 C 函数时，XS 从 Perl 堆栈中获取参数，将这些参数转化为 C 函数所要求的正确格式，
+    调用相应的 C 函数，并将返回值转化为 Perl 的参数格式，压入 Perl 堆栈供程序读取，
+    或者直接修改 Perl 所提供的变量值。
+    由于 Perl 提供了比 C 更为自由的变量定义和调用规则，在参数转换过程中，XS 还必须验证参数合法性，
+    抛出异常（或返回 undef 或空值列表），根据参数的数目和类型的不同调用不同的 C 函数，
+    提供面向对象接口等等。
+    XS 语言的编译器叫做 xsubpp，它为接口创建必要的数据结构和调用关系，
+    xsubpp 根据 typemaps 来确定如何在 Perl 与 C 之间转换函数参数和返回值。
+    标准 Perl 库自带的 typemap 定义了大部分常用的 C 变量类型，
+    但一些特殊的数据结构和类型需要开发人员通过自定义的 typemap 来实现。
+.XS 文件
+XSUB 解析
+    XS 接口文件以 .xs 为后缀名，里面定义了 Perl 与 C 之间的接口函数。
+    XSUB 是 XS 接口的基本结构单元，通过 xsubpp 编译后，
+    每个 XSUB 都为相应的 C 函数提供了 Perl 与 C 之间的调用接口。
+清单 1 . 一个简单的 .xs 文件
+   --------------------------------------------------------------------------------------------------- 
+    #include "EXTERN.h"
+    #include "perl.h"
+    #include "XSUB.h"
+    MODULE = TEST   PACKAGE = TEST 
+    void 
+        hello() 
+    CODE: 
+        printf("Hello, world!\n");
+  --------------------------------------------------------------------------------------------------- 
+    其中前三个 #include 声明：EXTERN.h，perl.h 和 XSUB.h 应该始终出现在每个 XS 文件的开头。
+    其后是其他的头文件 #include 声明。
+    MODULE= 定义了该 XS 文件所属的 Perl 模块（.pm），同一个 .xs 文件中所有的 MODULE= 都应该保持一致。
+    每个 MODULE= 之后则是对应的 XSUB 定义，直到文件结束或者下一个 MODULE= 语句。
+    PACKAGE= 定义了该函数所在的 Package，当同一个 .xs 文件需要被划分为多个 Package 时 
+    PACKAGE= 则需要被显式指定。PACKAGE= 应该和 MODULE= 放在一起并紧随其后。
+    一个最简单的 XSUB 由三部分（section）组成：
+        返回值定义；
+        XSUB 函数名和参数名；
+        以及参数类型。
+    复杂的 XSUB 还包括其他部分，如 CODE:（代码段），IUPUT:（输入值），OUTPUT:（输出值）等等。
+    其中返回值和函数名必须位于每个 XSUB 的开头，分行书写并左对齐顶格，其余部分格式则没有严格要求。
+清单 2 .XSUB 格式
+    double sin(x)        double                 double 
+    double x                sin(x)              sin(x) 
+    double x                double x 
+    错误                  错误                  正确

@@ -1,0 +1,180 @@
+===================================================================================================
+block_t
+===================================================================================================
+typedef struct {
+    // Fields used by the bresenham algorithm for tracing the line
+    int32_t  steps[STEPPER_COUNT];   // Step count along each axis
+    uint32_t step_event_count;   // The number of step events required to complete this block
+    int32_t  starting_position[STEPPER_COUNT];
+    int32_t  accelerate_until;   // The index of the step event on which to stop acceleration
+    int32_t  decelerate_after;   // The index of the step event on which to start decelerating
+    int32_t  acceleration_rate;   // The acceleration rate used for acceleration calculation
+    unsigned char direction_bits;    // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
+    unsigned char active_extruder;   // Selects the active extruder
+    uint8_t  active_toolhead;   // The toolhead currently active.  Note this isn't the same as active extruder
+#ifdef JKN_ADVANCE
+    bool use_advance_lead;
+    int16_t advance_lead_entry;
+    int16_t advance_lead_exit;
+    int32_t advance_pressure_relax;   //Decel phase only
+    int16_t advance_lead_prime;
+    int16_t advance_lead_deprime;
+#endif
+
+    // Fields used by the motion planner to manage acceleration
+    FPTYPE  nominal_speed;    // The nominal speed for this block in mm/min
+    FPTYPE  entry_speed;    // Entry speed at previous-current junction in mm/min
+    FPTYPE  max_entry_speed;   // Maximum allowable junction entry speed in mm/min
+    FPTYPE  millimeters;    // The total travel of this block in mm
+    FPTYPE  acceleration;    // acceleration mm/sec^2
+    unsigned char recalculate_flag;   // Planner flag to recalculate trapezoids on entry junction
+    unsigned char nominal_length_flag;   // Planner flag for nominal speed always reached
+
+    // Settings for the trapezoid generator
+    uint32_t nominal_rate;    // The nominal step rate for this block in step_events/sec
+    int32_t  nominal_rate_sq;   // nominal_rate * nominal_rate
+    uint32_t initial_rate;    // The jerk-adjusted step rate at start of block
+    uint32_t final_rate;    // The minimal rate at exit
+    uint32_t acceleration_st;   // acceleration steps/sec^2
+    char  use_accel;    // Use acceleration when true
+    char  speed_changed;    // Entry speed has changed
+    volatile char busy;
+
+#ifdef SIMULATOR
+    FPTYPE feed_rate;    // Original feed rate before being modified for nomimal_speed
+    int planned;    // Count of the number of times the block was passed to caclulate_trapezoid_for_block()
+    char message[1024];
+#endif
+
+#ifdef DEBUG_BLOCK_BY_MOVE_INDEX
+    uint32_t move_index;
+#endif
+
+    uint8_t  dda_master_axis_index;
+    uint8_t  axesEnabled;
+} block_t;
+---------------------------------------------------------------------------------------------------
+block_t.steps[STEPPER_COUNT]                    记录了每一个轴上步进电机所需要移动的步数(有正负之分)
+       .step_event_count                        当前block中所需要移动的步数，等于各个轴上所需要移动步数的'最大值'
+       .acceleration_rate                       加速度
+       .direction_bits                          电机转动方向位
+
+
+===================================================================================================
+整个block的执行时间 = 加速时间+滑行时间+减速时间
+===================================================================================================
+if (block->acceleration_rate == 0){             不使用加速度
+    initial_rate  = block->nominal_rate;        初始速度
+    acc_step_rate = block->nominal_rate;        加速度
+    dec_step_rate = block->nominal_rate;        减速度
+    acceleration_time = calc_timer(acc_step_rate, &step_loops) * block->step_event_count;
+    deceleration_time = 0;
+    coast_time        = 0;                      时间=2MHz/步速*步数
+    step_events_completed = block->step_event_count;
+}else{
+    initial_rate      = block->initial_rate;    初始速度
+    acc_step_rate     = block->initial_rate;    加速度
+    acceleration_time = calc_timer(acc_step_rate, &step_loops);
+    dec_step_rate     = 0;
+    deceleration_time = 0;                      减速时间
+    coast_time        = 0;                      滑行时间
+    intermed          = 0;
+    for (step_events_completed = 0; step_events_completed <= block->step_event_count; ){    循环去完成每一步
+        step_events_completed += step_loops;                                                一个时钟中断周期完成的步数
+        if (step_events_completed <= (uint32_t)(0x7fffffff & block->accelerate_until)){     仍处于加速周期
+            // speed(t) = speed(0) + acceleration * t
+            uint16_t old_acc_step_rate = acc_step_rate;
+            uint16_t intermed_a;
+            acc_step_rate = intermed_a =                                                    加速度*加速时间
+                (uint16_t)((0xffffffffff & ((uint64_t)(0x00ffffff & acceleration_time) * 
+                (uint64_t)(0x00ffffff & block->acceleration_rate))) >> 24);
+            acc_step_rate += block->initial_rate;                                           计算出当前速度
+            if (acc_step_rate < old_acc_step_rate && report)                                判断是否出现速度溢出
+                printf("*** While accelerating, the step rate overflowed: "
+                        "acc_step_rate = %u = %u + %u = %u + 0x%x * 0x%x\n",
+                        acc_step_rate, block->initial_rate,
+                        intermed_a, block->initial_rate,
+                        block->acceleration_rate,
+                        acceleration_time);
+            if (acc_step_rate > block->nominal_rate)                                        判断速度是否出现速度超出限制
+                acc_step_rate = block->nominal_rate;
+            acceleration_time += timer = calc_timer(acc_step_rate, &step_loops);            更新加速周期所耗费的时间
+            dec_step_rate = acc_step_rate;                                                  更新减速周期开始时的速度
+        }else if (step_events_completed > (uint32_t)(0x7fffffff & block->decelerate_after)){开始减速周期
+            // speed(t) = speed(0) - deceleration * t
+            uint16_t old_intermed = intermed;
+            intermed = (uint16_t)((0xffffffffff & ((uint64_t)(0x00ffffff & deceleration_time) * 
+                       (uint64_t)(0x00ffffff & block->acceleration_rate))) >> 24);          减速度*减速时间
+            if (intermed > acc_step_rate)
+                dec_step_rate = block->final_rate;                                          减速到最终至final_rate
+            else
+                dec_step_rate = acc_step_rate - intermed;                                   正常减速
+            if (dec_step_rate < block->final_rate)
+                dec_step_rate = block->final_rate;
+            if (intermed < old_intermed && report)                                          减速度溢出
+                printf("*** While decelerating, the step rate overflowed: "
+                        "%u = %u - %u = %u - 0x%x * 0x%x\n",
+                        dec_step_rate, acc_step_rate, intermed,
+                        acc_step_rate, block->acceleration_rate,
+                        deceleration_time);
+            deceleration_time += calc_timer(dec_step_rate, &step_loops);                    更新减速时间
+        }else{                                                                              滑行周期
+            // Must make this call as it has side effects
+            coast_time += calc_timer(acc_step_rate, &step_loops);                           持续更新滑行时间
+            dec_step_rate = acc_step_rate;
+        }
+    }
+}
+===================================================================================================
+dda
+===================================================================================================
+truct dda{
+    bool    master;         //True if this is the master steps axis,如果当前轴是master轴，这个值设置为真.
+    int32_t master_steps;   //The number of steps for the master axis,master轴所需要移动的步数计数
+    bool    eAxis;          //True if this is the e axis,当前轴是否是e轴
+    char    direction;      //Direction of the dda, 1 = forward, -1 = backwards,当前轴的移动方向
+    bool    stepperDir;     //The direction the stepper gets sent in
+    bool    enabled;        //True if this dda is enabled, 0 if target is reached or
+                            //this axis isn't moving. (Z and 1 extruder frequently don't move),
+                            //This variable acts to speed up processing.当前轴活动状态标志，用于加速.
+    int32_t counter;                //Used for the dda counter
+    int32_t steps_completed;        //Number of steps completed,当前轴已经移动的步数.
+    int32_t steps;                  //Number of steps we need to execute for this axis,当前轴所需要移动的步数.
+};
+---------------------------------------------------------------------------------------------------
+FORCE_INLINE void stepperAxis_dda_reset(uint8_t ind, bool master, int32_t master_steps, bool direction, int32_t steps)
+    ind             0-4,分别代表x,y,z,a,b五个轴
+    master          是否作为当前block的master轴
+    master_steps    master轴所需要移动的步数,即,当前block所需要移动的最大步数.
+    direction       当前轴的移动方向
+    steps           当前轴的移动步数
+{
+    DDA_IND.enabled           = (steps != 0 );      如果当前轴所需要移动的步数不为0，那么激活此dda.
+    if ( ! DDA_IND.enabled ) return;                //If we're not enabled, we don't calculate the rest.
+
+    DDA_IND.counter  = master_steps >> 1;
+#ifdef OVERSAMPLED_DDA
+    DDA_IND.counter  = - (DDA_IND.counter << OVERSAMPLED_DDA);
+#else
+    DDA_IND.counter  = - DDA_IND.counter;
+#endif
+
+    DDA_IND.master                = master;         标志当前轴是否是master
+#ifdef OVERSAMPLED_DDA
+    DDA_IND.master_steps          = master_steps << OVERSAMPLED_DDA;
+#else
+    DDA_IND.master_steps          = master_steps;   master轴所需要移动的步数计数
+#endif
+    DDA_IND.steps         = steps;                  当前轴所需要移动的步数.
+    DDA_IND.direction     = (direction) ? -1 : 1;
+    DDA_IND.stepperDir    = (direction) ? false : true;
+    DDA_IND.steps_completed = 0;                    已经移动的步数
+}
+===================================================================================================
+SLS与SLM技术的主要区别有哪些？这些区别中有哪些会对成型质量产生至关重要的影响因而需要特别关注？
+目前我们主要在关注激光烧结非金属材料的3D打印技术,在选择SLS与SLM技术上能否给一些建议？
+选定目标材料以及激光功率后，如何制定激光扫描策略？包括确定扫描速度、扫描间距以及有关激光束扫描相位角的问题.
+一般情况下SLS在烧结金属粉末时,未经过后期加工处理之前存在致密度偏低的问题，那么此问题在烧结非金属粉末时，是否仍然较为突出？
+激光扫描过程中，激光头是固定的还是移动的？如果是固定的，那么不同的扫描位置不是存在光斑大小和能量密度不一致的问题，如何看待这个问题？
+
+

@@ -1,0 +1,372 @@
+PMAC - programmable multi-axes controller
+     - 可编程多轴控制器
+===================================================================================================
+提供运动控制、离散控制、内务处理、同主机交互等数控的基本功能.
+伺服控制包括PID加Notch和速度、加速度前馈控制，其伺服周期单轴可达60us,二轴联动为110us.
+允许同一控制软件可在三种不同总线(PC-XT和AT,VME,STD)上运行，由此提供了多平台的支持特性.
+并且每轴可以分别配置成不同的伺服类型和多种反馈类型.
+
+与各种产品的匹配
+---------------------------------------------------------------------------------------------------
+1.  与不同伺服系统的连接
+    伺服接口有模拟式和数字式两种，能连接模拟、数字伺服驱动器，交、直流、直流无刷伺服电机伺服驱动器
+    以及步进电机驱动器.
+2.  与不同检测元件的连接
+    测速发电机、光电编码器、光栅、旋转变压器等
+3.  PLC功能的实现
+    内装式软件化的PLC，使用类似basic的程序，可扩展到2048点I/O
+4.  界面功能的实现
+    按用户需求定制
+5.  与IPC的通讯
+    PMAC提供了三种通讯手段——串行方式、并行方式和双口RAM方式
+    采用双口RAM方式可使PMAC与IPC进行高速通信，串行方式能使PMAC脱机运行
+6.  CNC系统的配置
+    PMAC以计算机标准插卡的形式与计算机系统共同构成CNC系统，
+    它可以用PC-XT&AT，VME，STD32或者PCI总线的形式与计算机相连.
+
+DSP56001    20Mhz电池RAM
+DSP56002    20-80Mhz闪存RAM
+DSP5630x    80-120Mhz闪存RAM(TURBO PMAC)
+
+PMAC可以做的工作
+---------------------------------------------------------------------------------------------------
+1.  执行运动程序
+    -   PMAC在某一时间执行一个运动，并执行有关运动的所有计算
+    -   PMAC总是提前混合即将执行的运动
+2.  执行PLC程序
+    -   以处理器允许的时间尽可能快的扫描PLC程序
+    -   PLC适用于某些异步于运动程序的运动过程
+3.  伺服环更新
+    -   伺服环更新对于PMAC的用户时看不到的，是由PMAC卡自动执行的任务
+    -   伺服环根据运动的设计者编写程序公式，从当前的实际位置和指令位置增加指令的数值
+4.  换向更新
+    -   PMAC以9Khz的频率自动进行换向计算和控制
+    -   PMAC测量并估算转子的磁场定向，然后处理电机的相之间的指令
+5.  常规管理
+    -   跟随误差限制
+    -   硬件超程限制
+    -   软件超程限制
+    -   放大器报警
+        在每个PLC扫描之间，PAMC执行上述任务保证自身的正常更新，如果这些功能不能在最小的频率内检测，
+        卡上的看门狗报警.
+6.  同上位机通讯
+    -   PMAC可以与上位机实时通讯
+    -   如果指令时违法的，它将报告给上位机
+7.  任务优先级
+    -   任务优先级保证卡的工作效率和安全
+    -   优先级时固定的，但是他们的频率是可以由用户控制的
+
+PMAC LAYOUT
+---------------------------------------------------------------------------------------------------
+PMAC1
+    J1  -   JDISP ACC12 40x2 LCD显示
+    J2  -   JPAN  ACC18 ACC39
+    J3  -   JTHUMB ACC34x,32in/32out multiplexed IO
+                   ACC16 ,Thumbwheel
+                   ACC27 ,8in/8out dedicated IO
+                   ACC8Dopt7,Resolver Input
+                   ACC8Dopt99,Yaskawa Input
+                   ACC35 ,Driver for ACC 34x
+                   ACC33 ,Control Panel for NC
+    J4  -   JRS422 ACC26 ,Opto Isolated RS422 Daisy Chain PMAC's
+    J5  -   JOPTO  ACC21S，OPTO22 Racks,GreyhIII Racks,8 inputs,8 outputs
+    J6  -   JXIO   Extension Inputs
+    J7  -   JMACH1&JMACH2 ACC8D
+    JS1&JS2 JANA ACC28A 16bit A/D
+    JEQU-   Outputs from position compare
+    JEXPP   ACC-24 PMAC Extension Card
+            ACC-29 MLDT
+            ACC-14 Parallel I/O
+            Option 2 DP RAM
+            ACC-49 Sanyo Absolute Encoder
+PMAC2
+    J1  -   JANA Option12 8-16Channel 12-bit ADC
+    J2  -   JTHMB ACC34x 32in/32out multiplexed IO
+                  ...
+    J3  -   JOPTO ACC21A 40-pin IDC to 50-pin OPTO22 32-bit I/O 40-pin IDC
+    J4  -   JMACRO ACC42 MACRO Interface for PMAC2
+    J5  -   JRS232 RS232 Communication
+    J6  -   JDISP ACC12 40x2 LCD Display
+    J7  -   JHW 20-pin IDC 2 Encoders 2 PFM or PWM Channels
+    J8  -   JEQU Outputs from position compare
+
+PMAC软件手册
+===================================================================================================
+PMAC系统构成
+    硬件            -   接线，连接检查
+    软件设置和定义  -   M变量定义图，坐标系定义和比列关系
+    系统编程        -   设计程序结构（计算机、运动、PLC's），编写和调试程序
+
+PMAC指令
+    在线指令        -   立即执行不会存储
+                        a.  全局指令
+                        b.  坐标系定义(&n ...)
+                        c.  电机定义(#n ...)
+                        方式设定、运动指令、查询、变量设定、缓冲区控制
+    缓冲区指令      -   可存储
+                        a.  运动程序，运动、方式、计算、逻辑、指令、信息
+                        b.  PLC程序，计算、逻辑、指令、信息
+                        用OPEN表达式，使缓冲区指令输入
+
+PMAC变量和功能
+    I变量           -   初始化和变量设置
+                        提前定义其含义
+                        有的影响卡的全局
+                        有的是电机的定义
+                        有的是坐标系的定义
+                        有的是编码器的定义
+    P变量           -   用户定义的变量
+                        48-bit浮点格式
+                        全局存取（与坐标系无关）
+    Q变量           -   用户定义的变量
+                        48-bit浮点格式
+                        与坐标系的定义有关
+    M变量           -   提供用户有权使用卡的内存和I/O寄存器
+                        用户定义地址，偏置值和位宽度
+                        无方向、可双向、BCD码
+    I0~I99          -   卡全局设定
+    I100～I186      -   电机1设定
+    I187～I199      -   坐标系1设定
+    I200～I286      -   电机2设定
+    I287～I299      -   坐标系2设定
+                ......
+    I800～I886      -   电机8设定
+    I887～I899      -   坐标系8设定
+    I900～I989      -   硬件设定
+---------------------------------------------------------------------------------------------------
+    Ix00            -   电机x有效（x = 电机序号）
+                        =0，电机x无效，不执行伺服计算，没有位置报告
+                        =1，电机x有效，伺服计算速度为30us/cycle
+    Ix01            -   电机x换相
+                        =0，不需PMAC执行换相，不执行换相计算，一路模拟量输出
+                        =1，由PAMC执行换相，相计算速度为3us/cycle,一个电机需要2路模拟量，Ix70-Ix83必须使用
+    Ix15            -   在终止和遇到限位时的减速速率（cts/m*sec*sec,浮点形式）
+                        一定不要设置位0，否则电机没有减速
+    Ix16            -   准许的最大编程速度（cts/m*sec,浮点）只对直线速度混合方式(I13=0)
+                        速度修调可使此速度比列变化(%值),也适用于RAPID快速方式，如果I50=1
+    Ix17            -   允许的编程最大加速度（cts/m*sec*sec,浮点），其他同上.
+    Ix19            -   允许的JOG最大加速度（cts/m*sec*sec,浮点）
+                        可以用TA（Ix20)&TS(Ix21）修调，如果Ix20=0&Ix21=0,总用此加速度
+                        JOG方式是PMAC卡的最简单闭环运动形式，JOG的控制指令为PMAC卡的在线指令
+                        Jogging可用于简单定位或以常速运动，像在主轴的应用.
+                        J+      Jog正向连续运动
+                        J-      Jog反向连续运动
+                        J/      Jog运动停止（或者闭环）
+                        J=      Jog返回前一个JOG的位置
+                        J=常数  Jog到指定的位置（单位时脉冲counts)
+                        J^常数  Jog从当前实际位置运动指定的距离
+                        J:常数  Jog从当前指令位置运动指定的距离
+                        J=*     Jog运动一个变量(PMAC的内存地址）
+                        J={常数或*}^{常数}  Jog直到触发
+                        变量Ix19-Ix22用于JOG控制.变量可以在运动中改变，但只有到下一个JOG指令时才有效.
+
+
+运动程序时指令坐标系的轴作定位和轮廓运动等.运动程序是多数PMAC卡应用的核心
+PMAC编程
+    -   在某一时刻执行一个运动，执行运动所需要的所有计算
+    -   在坐标系下运行
+    -   一个程序可以在多个坐标系下同时运行
+    -   一个程序可以在不同的坐标系下运行
+    -   一个坐标系一段时间只能运行一个运动程序
+    开始一个运动程序
+    -   指向一个坐标系，用在线指令:&n
+    -   用在线指令指向程序:Bn
+    -   用在线指令运行:R or <CTRL-R>
+    停止程序
+    -   指向一个坐标系，用在线指令:&n
+    -   用在线指令:Q,S,A,or<CTRL-Q>,<CTRL-S>,<CTRL-A>,<CTRL-K>
+    PMAC运动程序表达式
+    -   运动指令
+        x1000 Y2000 z3000
+        U(P1*3.14159) V(20*sin(Q6))
+        DWELL,DELAY
+    -   模态指令
+        ABS,INC,FRAX,NORMAL,LINEAR,RAPID,CIRCLEn,SPLINEn,PVTTA,TS,TM,F
+    -   变量赋值
+        {variable}={expression}
+    -   逻辑表达式
+        N,O,GOTO,GOSUB,CALL,RETURN,G,M,T,D,IF,ELSE,ENDIF,WHILE,ENDWHILE
+    -   辅助表达式
+        COMMAND,SEND,DISPLAY,ENABLE PLC,DISABLE PLC
+    PMAC逻辑操作
+    -   逻辑操作符
+        &(bit by bit AND)
+        |(bit by bit OR)
+        ^(bit by bit Exclusive OR)
+    -   比较符
+        = (equal to)
+        !=(not equal to)
+        > (greater than)
+        !>(not greater than;less than or equal to)
+        < (less than)
+    -   函数
+        SIN,COS,TAN,ASIN,ACOS,ATAN,ATAN2,SQRT,LN,EXP,ABS,INT
+    建立一个程序
+        CLOSE
+        DEL GAT
+        &n
+        #{motor}->{axis scaling}{axis}
+        OPEN PROG n CLEAR
+        ......(Motion program statements)
+        CLOSE
+    从内存中删除一个程序
+        OPEN PROG n CLEAR
+        CLOSE
+    A Simple Move
+        DEL GAT     ;Erase any defined gather buffer
+        &1          ;坐标系1
+        CLOSE       ;Make sure all buffers are closed
+        #1->x       ;Assign motor 1 to the X-axis, 1 program unit of X is 1 encoder count of motor #1
+
+        OPEN PROG 1 ;为程序入口打开缓冲区,#Program #1
+        CLEAR       ;清除缓冲区中存在的内容
+        LINEAR      ;Blended linear interpolation move mode
+        ABS         ;Absolute mode,moves specified by position
+        TA500       ;Set 1/2 sec(500 ms) acceleration time(加速时间0.5s)
+        TS0         ;Set no S-curve acceleration time
+        F5000       ;Set feedrate(speed) of 5000units(cts)/sec
+        X10000      ;Move X-axis to position 10000
+        DWELL500    ;Stay in position for 1/2 sec(500ms)
+        X0          ;Move X-axis to position 0
+        CLOSE       ;Close buffer,end of program
+
+        To run this program:
+        &1 B1 R     ;坐标系1，指向Program1的起始位置,Run
+
+数据采集
+    PMAC已经内置数据获取能力称之为数据采集功能
+    -   实时采集任何PMAC卡的地址信息
+    -   最多达24个地址，每个地址24或48位宽
+    -   采样周期从1到8千万个伺服周期
+    -   可以由外部触发采集
+    -   可上载到计算机用于处理和分析
+    -   PMAC执行程序可产生采集数据的图形和平台
+    -   用于：系统判别，伺服环调整，程序的编译，设备的编译和维护
+    PMAC可用在线指令采集数据，指令可通过在线窗口或运动程序中的在线指令或PLC程序发送
+    -   DEFINE GATHERR(DEF GAT)     PMAC准备采集数据
+    -   GATHER(GAT)                 PMAC开始采集过程
+    -   END GATHER（ENDG）          PMAC采集结束
+    数据采集周期由I19设定(I19的单位时伺服周期）
+    -   1，采样周期位2250Hz
+    -   22,采样周期110Hz
+    -   23,采样周期95Hz
+        DEL GAT
+        &1
+        CLOSE
+        #1->x
+        OPEN PROG 1
+        CLEAR
+        LINEAR
+        ABS
+        TA500
+        TS0
+        F5000
+        X10000
+        DWELL500
+        X0
+        DWELL0              ;stop program lookahead
+        CMD "ENDG"          ;Send On-line command to stop data gathering
+        CLOSE
+    TA/TS
+    -   TA,编程加速时间
+    -   TS，编程S曲线时间
+
+PLC编程
+===================================================================================================
+PMAC卡除了运行运动程序，还可以运行PLC程序.
+PMAC PLC程序使能PMAC卡执行一个硬件的PLC任务，并且独立于运动程序.
+PMAC PLC类型
+    -   前台PLC（PLC0 or PLCC0),执行与伺服中断，扫描速率由I8控制，对于时间临界的任务-尽可能的短.
+    -   后台PLC（PLC1-31 or PLCC1-31),在伺服周期之间运行，重复速率是由:伺服频率、电机的轴数、运动程序的计算、PLC程序的长度和复杂度
+PLC与PLCC的区别
+    -   PLCC's 编译的 PLC's,消除解释时间，具有整形计算的能力，浮点操作快2-3倍，整形操作快20-30倍
+PLC编程控制
+    -   I5 = 0，无PLC程序被使能
+           = 1，前台PLC's使能，后台PLC's不使能
+           = 2，与上面相反
+           = 3，所有PLC's使能
+
+PMAC Memory Mapping
+            X-Memory            Y-Memory
+            23-0                23-0
+    0000
+            Internal DSP Memory
+    00FF
+            Fixed-Use Calculation Registers
+    17FF
+            User Buffer Storage Space
+    9FFF
+            User-Written Servo Storage M-Variable Definitions
+    BFFF
+            DSP-Gate Registers
+    C03F
+            Dual-Ported RAM
+    DFFF
+            VME bus registers
+    F000
+            I/O Registers
+    FFFF
+
+
+
+PMAC - programmable multi-axes controller  可编程多轴控制器
+PLC  - programmable logic controller 可编程逻辑控制器
+===================================================================================================
+PLC是一种专门为在工业环境下应用而设计的数字运算操作的电子装置。
+它采用可以编制程序的存储器，用来在其内部存储执行逻辑运算、顺序运算、计时、计数和算术运算等操作的指令，
+并能通过数字式或模拟式的输入和输出，控制各种类型的机械或生产过程。
+PLC及其有关的外围设备都应该按易于与工业控制系统形成一个整体，易于扩展其功能的原则而设计。
+
+PLC的核心其实就是一块单片机，它围绕着这块单片机(CPU)，建立起外围硬件系统，并在其内部固化了编译和通讯
+等等的特殊程序，这样就能直接和外部编程器通讯，外部的程序写进来，通过编译形成一段执行程序，来控制PLC
+的输出达到工业控制的目的.
+
+与单片机系统相比：
+-   构造简单，系统结构已经确定
+-   抗干扰能力强（经过严格电器检验）
+-   扩展容易（模块化）
+-   编写程序简单（梯形图程序非常直观）
+-   易于维护、扩展和更换
+-   价格昂贵，执行速度差强人意，如果涉及到MS量级的数据输入和输出非常勉强
+
+计算机 = 控制单元(CU) + 算术运算单元(ALU) + 存储器(Memory) + 输入设备(Input) + 输出设备(Output)
+CPU    = CU + ALU
+MCU/MPU= CPU + 主板
+       - 高性能、高速度、大容量Interl80x86,P2,P3,P4...
+       - 多功能，存储器&输入输出接口全部集成在一块集成电路板中而成为SOC，即，单片机.
+         MCS-51\MCS-96\PIC\AVR\ARM\TMS320\MSP430\MOTOROLA
+PLC    = 建立在单片机之上的产品，单片机时一种集成电路，两者不具有可比性
+         单片机可以构成各种各样的应用系统，PLC是单片机应用系统的一个特例
+         不同厂家的PLC由相同的工作原理，类似的功能和指标，由一定的互换性，质量有保证，编程软件正朝标准化方向迈进.
+         这正是PLC获得广泛应用的基础.
+         单片机应用系统则是八仙过海、各显神通，功能千差万别，质量参差不齐.
+PLC vs 单片机（工程角度）
+    -   对于单项工程或重复数极少的项目，采用PLC方案是明智、快捷的.成功率高、可靠性好、成本高.
+    -   对于量打的配套项目，采用单片机系统具有成本低、效益高的有点，但是要有相当的研发力量和行业经验才能使系统稳定、可靠的运行.
+        最好的方法是，单片机系统嵌入PLC的功能，这样可大大简化单片机系统的研制时间，性能得到保障，效益也有保证.
+PLC系统设计的四项基本原则
+    -   最大限度的满足被控对象的控制要求
+    -   在满足控制要求的前提下，力求使控制系统简单、经济、使用和维护方便
+    -   保证控制系统安全可靠
+    -   考虑到生产的发展和工艺的改进在选择PLC容量时应适当留有余量
+PLC vs DCS
+    -   DCS从传统的仪表盘监控系统发展而来.因此，DCS从先天性来说较为侧重仪表的控制，
+        PLC从传统的继电器回路发展而来，最初的PLC甚至没有模拟量的处理能力，因此，PLC从开始就强调的时逻辑运算能力.
+    -   控制类产品繁多，无论DCS还是PLC,都有很多厂商在生产和销售.
+        PLC系统一般没有或者很少由扩展的需求，因为PLC系统一般针对于设备来使用.
+        DCS在发展的过程中也是各厂家自成体系.
+    -   DCS一般都提供统一的数据库，一旦一个数据存在于数据库中，就可在任何情况下引用：组态软件/监控软件/趋势图/报表...
+        PLC系统的数据库通常不统一，组态软件、监控软件甚至归档软件都有自己的数据库.
+    -   PLC程序一般不能按事先设定的循环周期运行.PLC程序是从头到尾执行一次后又从头开始执行
+        DCS可以设定任务周期
+    -   DCS通常使用两层网络结构工业自动化网，一层位过程级网络，大部分DCS使用自己的总线协议,例如Modbus\Profibus\CAN bus
+        这些协议均建立在标准串口传输协议RS232或RS485协议的基础上.
+        PLC系统的工作任务相对简单，因此需要传输的数据量一般不大，所以常用一层网络结构
+        过程级网络和操作级网络要么合并在一起，要不过程级网络简化成模块之间的内部连接.PLC不会或者很少使用以太网.
+    -   PLC一般应用在小型自控场所，如设备的控制或少量的模拟量控制及联锁.
+        大型的应用一般都时DCS.
+    -   DCS是一种“分散式控制系统”
+        PLC是一种“控制装置”
+    -   PLC面向一般工业控制领域
+        DCS偏重过程控制
+

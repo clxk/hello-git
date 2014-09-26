@@ -1,0 +1,23 @@
+1.  工程所在的目录
+    ~/Desktop/dayong.yang/xery_firmware/Sailfish-MightyBoardFirmware/
+2.  工程编译配置文件
+    ~/Desktop/dayong.yang/xery_firmware/Sailfish-MightyBoardFirmware/firmware/src/MightyBoard/Motherboard/boards/mighty_one/Configuration.hh
+3.  常用宏配置(修改上面的工程配置文件，开启或者关闭相关选项）
+    #define SLOW_FIRST_LAYER 1          //打印第一层以正常速度的50%进行
+    #define NO_LINE_ON_SURFACE 1        //解决打印表面的划痕问题,此选项可能会导致打印时Z轴频繁的升降
+    //#define SINGLE_EXTRUDER 1         //单喷嘴方案
+    //#define EN_ENABLE 1               //英文显示
+    //#define BIG_SIZE_SUPPORT   1      //SMART-300方案，默认为正常的SMART方案
+    #define MINI_DGUS_SUPPORT 1         //迪文彩屏
+    #define MINI_DGUS_ONLY 1            //迪文彩屏
+    #define HAS_SLAVE_UART 1            //迪文彩屏，此处三个宏需要同时开启或者关闭，选择非彩屏方案时务必关闭
+4.  编译方法
+    a.  进入目录/home/dayongyang/Desktop/dayong.yang/xery_firmware/Sailfish-MightyBoardFirmware/firmware
+    b.  执行文件./xery_build.sh
+5.  下载方法
+    a.  进入目录/home/dayongyang/Desktop/dayong.yang/xery_firmware/Sailfish-MightyBoardFirmware/firmware
+    b-1.下载USB文件，执行./upload_8U2.sh                （每块板子只需下载一次)
+    b-2.下载启动加载程序，执行./upload_bootloader.sh    （每块板子只需下载一次)
+    b-3.下载固件程序，执行./upload_firmware.sh          （每次更改固件时需要下载）
+6.  开机密码
+    clxk

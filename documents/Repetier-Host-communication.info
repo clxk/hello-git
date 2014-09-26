@@ -1,0 +1,176 @@
+Repetier-Host/src/RepetierHost/connector/SerialConnector.cs
+---------------------------------------------------------------------------------------------------
+    namespace RepetierHost.connector {
+        public class SerialConnector : PrinterConnectorBase, INotifyPropertyChanged, IDisposable {
+            public override bool Connect()
+            public override bool Disconnect(bool force)
+            public override bool IsConnected()
+        }
+    }
+Repetier-Host/src/RepetierHost/connector/SerialConnectionPanel.Designer.cs
+Repetier-Host/src/RepetierHost/connector/SerialConnectionPanel.cs
+---------------------------------------------------------------------------------------------------
+    namespace RepetierHost.connector {
+        partial class SerialConnectionPanel {
+        }
+    }
+    namespace RepetierHost.connector{
+        public partial class SerialConnectionPanel : UserControl {
+            SerialConnector con;
+            public void Connect(SerialConnector con){
+                this.con = con;
+            }
+        }
+    }
+
+
+SerialConnector:ConnectionDialog
+            if (panel == null)
+            {
+                panel = new SerialConnectionPanel();
+                panel.Connect(this);
+            }
+            panel.UpdatePorts();
+            return panel;
+SerialConnectionPanel:Connect
+            if (con != null)
+                con.PropertyChanged -= bindingConnection_CurrentItemChanged;
+            this.con = con;
+            //bindingConnection.DataSource = con;
+            con.PropertyChanged += bindingConnection_CurrentItemChanged;
+            bindingConnection_CurrentItemChanged(null, null);
+SerialConnectionPanel:UpdatePorts
+            comboPort.Items.Clear();
+            //comboPort.Items.Add("Virtual Printer");
+            if (Main.IsMono && Environment.OSVersion.Platform == PlatformID.Unix){
+                DirectoryInfo di = new DirectoryInfo("/dev");
+                FileInfo[] list = di.GetFiles("tty*");
+                foreach (FileInfo info in list)
+                    comboPort.Items.Add(info.FullName);
+            } else {
+                foreach (string p in SerialPort.GetPortNames()) {
+                    comboPort.Items.Add(p);
+                }
+            }
+
+
+namespace RepetierHost.model{
+    public class GCodeShort{
+        public float x, y, z, e,f,emax;
+        // Bit 0-19 : Layer 
+        // Bit 20-23 : Tool
+        // Bit 24-29 : Compressed command
+        int flags;
+        public string text;
+
+        /**
+        Command values:
+         0 = unimportant command
+         1 = G0/G1
+         2 = G2
+         3 = G3
+         4 = G28 xzy = 1 => Set this
+         5 = G162
+         6 = G90 relative
+         7 = G91 absolute
+         8 = G92 x/y/z/e != -99999 if set
+         9 = M82 eRelative
+         10 = M83 eAbsolute
+         11 = Txx Set Tool
+         12 = Host command
+         63 = unparsed
+        */
+
+
+        public GCodeShort(string cmd){                  //构造命令
+            text = cmd;
+            flags = 1048575 + (0 << 24);
+            x = y = z = e = f = -99999;
+            emax = -1;
+            parse();
+        }
+        private void parse(){}                          //解析命令
+        public bool addCode(char c, string val){
+            switch (c)
+            {
+                case 'G':
+                case 'M':
+                case 'T':
+                case 'X':
+                case 'Y':
+                case 'Z':
+                case 'E':
+                case 'A':
+                case 'F':
+            }
+        }
+    }
+}
+
+
+GCodeShort
+===================================================================================================
+    ./src/RepetierHost/RepetierHost.csproj
+    ./src/RepetierHost/model/GCodeShort.cs
+    ./src/RepetierHost/model/Printjob.cs
+    ./src/RepetierHost/model/GCodeAnalyzer.cs
+    ./src/RepetierHost/model/PrinterConnection.cs
+    ./src/RepetierHost/model/GCodeVisual.cs
+    ./src/RepetierHost/connector/SerialConnector.cs
+    ./src/RepetierHost/connector/VirtualPrinterConnector.cs
+    ./src/RepetierHost/Main.cs
+    ./src/RepetierHost/view/StoreCode.cs
+    ./src/RepetierHost/view/RepetierEditor.cs
+    ./src/RepetierHost/view/SDCard.cs
+
+    toolFile.Items.Add(new Content(this, 0, "G-Code"));
+    toolFile.Items.Add(new Content(this, 1, "Start code"));
+    toolFile.Items.Add(new Content(this, 2, "End code"));
+    toolFile.Items.Add(new Content(this, 3, "Run on kill"));
+    toolFile.Items.Add(new Content(this, 4, "Run on pause"));
+
+    Repetier-Host/src/RepetierHost/connector/SerialConnector.cs
+        public override void RunJob(){
+            List<GCodeShort> content = Main.main.editor.getContentArray(0);     //正文段
+            job.BeginJob();
+            job.PushGCodeShortArray(Main.main.editor.getContentArray(1));       //起始段
+            job.PushGCodeShortArray(content);
+            job.PushGCodeShortArray(Main.main.editor.getContentArray(2));       //结束段
+            job.EndJob();
+            Main.main.Invoke(Main.main.UpdateJobButtons);
+        }
+        public override void PauseJob(string text){
+            foreach (GCodeShort code in Main.main.editor.getContentArray(4))    //暂停段
+            {
+                InjectManualCommand(code.text);
+            }
+            Main.main.Invoke(Main.main.UpdateJobButtons);
+        }
+
+    List<GCodeShort> codes  --GCodeAnalyzer-->  code-line   --GCode.Parse-->    GCodeCompressed
+    LinkedList<GCodeCompressed> jobList = new LinkedList<GCodeCompressed>();
+
+
+Repetier-Host/src/RepetierHost/model/PrinterConnection.cs
+    handleTimer --> connector.RunPeriodicalTasks();
+Repetier-Host/src/RepetierHost/connector/PrinterConnectorBase.cs
+    public abstract class PrinterConnectorBase::
+        abstract public bool Connect();
+        abstract public bool Disconnect(bool force);
+        abstract public bool IsConnected();
+        abstract public void RunPeriodicalTasks();
+Repetier-Host/src/RepetierHost/connector/SerialConnector.cs
+    public class SerialConnector : PrinterConnectorBase, INotifyPropertyChanged, IDisposable
+        public override bool Connect(){
+           serial.Open();
+           if (writeThread == null){
+               writeThread = new Thread(new ThreadStart(this.WriteLoop));
+               writeThread.Start();
+           }
+        }
+        public void WriteLoop(){
+            while (TrySendNextLine2()) { }
+        }
+        public bool TrySendNextLine2(){
+            serial.Write(cmd, 0, cmd.Length);
+        }

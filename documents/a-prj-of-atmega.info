@@ -1,0 +1,1396 @@
+远程控制全套资料
+    这是本人前两年应朋友要求参加某高校的电子设计大赛时设计的远程控制系统，现公布全套资料，
+由于时间匆忙功能没有全部做完，而且程序有点乱，但有很多地方是值得大家借鉴。
+    实现的功能有：有线电话拨号(DTMF)解码，密码校队，密码设置，功率开关量控制电器起停，32Bit红外编码调制发射，解码，
+32Bit红外编码学习，模拟红外遥控电器,PC通讯等。
+    附带全部资料，先贴一段程序，需要的可以自行下载，请勿用于商业。
+===================================================================================================
+#include <mega64.h>
+#include <stdio.h>
+#include <delay.h>
+
+
+// DS1302 Real Time Clock functions
+#asm
+.equ __ds1302_port=0x12 ;PORTD
+.equ __ds1302_io=7
+.equ __ds1302_sclk=6
+.equ __ds1302_rst=4
+#endasm
+
+
+
+#include <ds1302.h>
+#include <eeprom.h>
+#include "yckz.h"
+#include "DTMF_8880.C"
+#include  "comm.c"
+
+
+unsigned char RFJS,hw_data,HW_Fun,HW_yd,HW_js,HW_Tjs,HW_char;
+unsigned long   HW_F_data;
+//unsigned char HW_F_data[9];
+unsigned int  TIM0_OVF_js;
+unsigned char  TEL_zj,TEL_bj,telint_temp1,baojing_IDTEMP;
+unsigned char TEL_data1,TEL_data2,TEL_data3,TEL_data4,TEL_init_chishu,TEL_init_chishu1,TEL_init_chishu2;
+unsigned int  TEL_zhenling,POW_kongzhi,TEL_zn,TEL_chan,TEL_int,Yuying_int;
+
+/****************************红外接收**全局变量声明***********************/
+unsigned long hw_temp,hw_cm,tel_mima,tel_yuying_xingdao;
+unsigned int count_temp,HW_intjs,dtmf_xianshi;  //计数变量
+unsigned char EX_y_b,count_high,count_int0;       //接收数据计数
+unsigned char EX_hy_in,EX_hy_save,Ret_hy_mpuRX,TEL_MiMa_Ok;
+
+unsigned char Telid_temp,TEL_zt_data,TEL_zn_data,Tel_call_data,Tel_zhixing_biaozhi;
+unsigned char RED165,PC_com_ok,put_dtmf_ok,dtmf_js,TelZhenLingData,TEL_zn_js,TEL_zn_biaozhi;
+///***************************************///
+unsigned char com_pc_data[16];
+unsigned char com_tel_data[9];
+unsigned char TEL_ID_data[8];
+unsigned char TEL_ID_datemp[2];
+unsigned int TEL_ID_datamp[6];    ////TEL数据交换寄存器
+
+//unsigned char HW_data[9];
+///***************************************///
+/**************************标志位定义**********************************/
+//unsigned char Remote_start = 0; // 遥控信号导引标志，1表示收到标志
+//unsigned char EX_yb = 0;       //   找导引头时，第一次中断后置1
+//unsigned char JM_OK = 0;      // 遥控数据更新发送标志
+unsigned char Remote_start,EX_yb,JM_OK;
+/**********************************************************************/
+
+
+/**********************************************************************/
+//char  Str[] = {"CUI Ver:0.0.1","SiChuang XiJiang JiRuijiang","2006.10.1"};
+/*********************USART定义****************************************/
+
+#define RXB8 1
+#define TXB8 0
+#define UPE 2
+#define OVR 3
+#define FE 4
+#define UDRE 5
+#define RXC 7
+
+#define FRAMING_ERROR (1<<FE)
+#define PARITY_ERROR (1<<UPE)
+#define DATA_OVERRUN (1<<OVR)
+#define DATA_REGISTER_EMPTY (1<<UDRE)
+#define RX_COMPLETE (1<<RXC)
+
+// USART0 Receiver buffer
+#define RX_BUFFER_SIZE0 16
+//char com_pc_data[RX_BUFFER_SIZE0];
+
+#if RX_BUFFER_SIZE0<256
+unsigned char rx_wr_index0,rx_rd_index0,rx_counter0;
+#else
+unsigned int rx_wr_index0,rx_rd_index0,rx_counter0;
+#endif
+
+// This flag is set on USART0 Receiver buffer overflow
+bit rx_buffer_overflow0;
+
+// USART0 Receiver interrupt service routine
+interrupt [USART0_RXC] void usart0_rx_isr(void)
+{
+    char status,data;
+    status=UCSR0A;
+    data=UDR0;
+    if ((status & (FRAMING_ERROR | PARITY_ERROR | DATA_OVERRUN))==0)
+    {
+        if(rx_wr_index0 == 4)            ////数据帧头检查
+        {
+            if((com_pc_data[0] != 0x55)||(com_pc_data[1] != 0xaa)||(com_pc_data[2] != 0x55)||(com_pc_data[3] != 0xaa))
+                rx_wr_index0 = 0;
+        }
+        com_pc_data[rx_wr_index0]=data;
+        //   putchar(com_pc_data[rx_wr_index0]);
+        if (++rx_wr_index0 == RX_BUFFER_SIZE0) rx_wr_index0=0;
+        if (++rx_counter0 == RX_BUFFER_SIZE0)
+        {
+            rx_counter0=0;
+            PC_com_ok = 1;
+            rx_buffer_overflow0=1;
+        };
+    };
+}
+
+#ifndef _DEBUG_TERMINAL_IO_
+// Get a character from the USART0 Receiver buffer
+#define _ALTERNATE_GETCHAR_
+
+#pragma used+
+char getchar(void)
+{
+    char data;
+    while (rx_counter0==0);
+    data=com_pc_data[rx_rd_index0];
+    if (++rx_rd_index0 == RX_BUFFER_SIZE0) rx_rd_index0=0;
+#asm("cli")
+    --rx_counter0;
+#asm("sei")
+    return data;
+}
+#pragma used-
+#endif
+
+// USART0 Transmitter buffer
+#define TX_BUFFER_SIZE0 8
+char tx_buffer0[TX_BUFFER_SIZE0];
+
+#if TX_BUFFER_SIZE0<256
+unsigned char tx_wr_index0,tx_rd_index0,tx_counter0;
+#else
+unsigned int tx_wr_index0,tx_rd_index0,tx_counter0;
+#endif
+
+// USART0 Transmitter interrupt service routine
+interrupt [USART0_TXC] void usart0_tx_isr(void)
+{
+    if (tx_counter0)
+    {
+        --tx_counter0;
+        UDR0=tx_buffer0[tx_rd_index0];
+        if (++tx_rd_index0 == TX_BUFFER_SIZE0) tx_rd_index0=0;
+    };
+}
+
+#ifndef _DEBUG_TERMINAL_IO_
+// Write a character to the USART0 Transmitter buffer
+#define _ALTERNATE_PUTCHAR_
+#pragma used+
+void putchar(char c)
+{
+    while (tx_counter0 == TX_BUFFER_SIZE0);
+#asm("cli")
+    if (tx_counter0 || ((UCSR0A & DATA_REGISTER_EMPTY)==0))
+    {
+        tx_buffer0[tx_wr_index0]=c;
+        if (++tx_wr_index0 == TX_BUFFER_SIZE0) tx_wr_index0=0;
+        ++tx_counter0;
+    }
+    else
+        UDR0=c;
+#asm("sei")
+}
+#pragma used-
+#endif
+
+// USART1 Receiver buffer
+#define RX_BUFFER_SIZE1 8
+char rx_buffer1[RX_BUFFER_SIZE1];
+
+#if RX_BUFFER_SIZE1<256
+unsigned char rx_wr_index1,rx_rd_index1,rx_counter1;
+#else
+unsigned int rx_wr_index1,rx_rd_index1,rx_counter1;
+#endif
+
+// This flag is set on USART1 Receiver buffer overflow
+bit rx_buffer_overflow1;
+
+// USART1 Receiver interrupt service routine
+interrupt [USART1_RXC] void usart1_rx_isr(void)
+{
+    char status,data;
+    status=UCSR1A;
+    data=UDR1;
+    if ((status & (FRAMING_ERROR | PARITY_ERROR | DATA_OVERRUN))==0)
+    {
+        rx_buffer1[rx_wr_index1]=data;
+        if (++rx_wr_index1 == RX_BUFFER_SIZE1) rx_wr_index1=0;
+        if (++rx_counter1 == RX_BUFFER_SIZE1)
+        {
+            rx_counter1=0;
+            rx_buffer_overflow1=1;
+        };
+    };
+}
+
+// Get a character from the USART1 Receiver buffer
+#pragma used+
+char getchar1(void)
+{
+    char data;
+    while (rx_counter1==0);
+    data=rx_buffer1[rx_rd_index1];
+    if (++rx_rd_index1 == RX_BUFFER_SIZE1) rx_rd_index1=0;
+#asm("cli")
+    --rx_counter1;
+#asm("sei")
+    return data;
+}
+#pragma used-
+// USART1 Transmitter buffer
+#define TX_BUFFER_SIZE1 8
+char tx_buffer1[TX_BUFFER_SIZE1];
+
+#if TX_BUFFER_SIZE1<256
+unsigned char tx_wr_index1,tx_rd_index1,tx_counter1;
+#else
+unsigned int tx_wr_index1,tx_rd_index1,tx_counter1;
+#endif
+
+// USART1 Transmitter interrupt service routine
+interrupt [USART1_TXC] void usart1_tx_isr(void)
+{
+    if (tx_counter1)
+    {
+        --tx_counter1;
+        UDR1=tx_buffer1[tx_rd_index1];
+        if (++tx_rd_index1 == TX_BUFFER_SIZE1) tx_rd_index1=0;
+    };
+}
+
+// Write a character to the USART1 Transmitter buffer
+#pragma used+
+void putchar1(char c)
+{
+    while (tx_counter1 == TX_BUFFER_SIZE1);
+#asm("cli")
+    if (tx_counter1 || ((UCSR1A & DATA_REGISTER_EMPTY)==0))
+    {
+        tx_buffer1[tx_wr_index1]=c;
+        if (++tx_wr_index1 == TX_BUFFER_SIZE1) tx_wr_index1=0;
+        ++tx_counter1;
+    }
+    else
+        UDR1=c;
+#asm("sei")
+}
+#pragma used-
+
+// Standard Input/Output functions
+
+
+
+// External Interrupt 0 service routine
+interrupt [EXT_INT0] void ext_int0_isr(void)
+{
+    //unsigned char  con_hw_temp;
+    // RUN_LED2 =0;
+    TCCR3B = 0x00;            //清除Bit位计数
+    TCNT3H = 0xFD;          //定时器赋值
+    TCNT3L = 0x4D;
+    TCCR3B = 0x02;
+    //  RUN_LED2 =0;
+    if(EX_hy_in != 0)
+    {
+        if(EX_yb==0 )
+        {
+            EICRA = 0x0B; //int0上升沿
+            EX_yb=1;               //脉冲计数
+            JM_OK = 0;             //解码完成标志
+            EX_y_b = 0;
+            Remote_start = 0;
+            count_high = 0;
+            hw_temp = 0;
+        }
+        else
+        {
+            if(Remote_start == 0)
+            {
+                switch(EX_yb)
+                {
+                    case 1: //if(EX_yb==1)
+                        {
+                            //判断引导头的9ms低电平
+                            if((count_high>0x10)&&(count_high<0x15))
+                            {
+                                //putchar(count_high);
+                                count_int0=1;                         //
+                                // Remote_start = 1;
+                                hw_temp = 0;
+                                EX_yb++;
+                                count_high = 0;
+                            }
+                            else
+                            {
+                                //putchar(count_high);
+                                EX_yb=0;
+                                EX_y_b = 0;            //清除Bit位计数
+                                JM_OK = 0;             //解码完成标志
+                                Remote_start = 0;
+                                count_high = 0;
+                                hw_cm = 0;      ////重复码清零
+                            }
+                            EICRA = 0x0A; //INT0下降沿
+                            break;
+                        }
+                    case 2:
+                        {
+
+                            //判断引导头的4.5ms高电平和处理重复码
+                            if((count_high>=0x03)&&(count_high<0x0a))
+                            {
+                                if(count_high<=5)
+                                {////处理重复码
+                                    //putchar(count_high);
+                                    JM_OK = 1;             //解码完成
+                                    hw_temp = hw_cm;          ////重复码处理机制
+                                }
+                                else
+                                {
+                                    ////处理4.5ms的电平
+                                    //putchar(count_high);
+                                    count_int0=1;                         //
+                                    Remote_start = 1;
+                                    hw_temp = 0;
+                                    EX_yb++;
+                                    count_high = 0;
+                                    // EICRA = 0x0b; //INT0上降沿
+                                }
+                            }
+                            else
+                            {////低电平错误复位处理
+                                //putchar(count_high);
+                                EX_yb=0;
+                                EX_y_b = 0;            //清除Bit位计数
+                                JM_OK = 0;             //解码完成标志
+                                Remote_start = 0;
+                                count_high = 0;
+                                hw_cm = 0;      ////重复码清零
+                            }
+                            EICRA = 0x0A; //extended ext ints
+                            break;
+                        }
+                    default:
+                        {
+                            EX_yb=0;
+                            EX_y_b = 0;            //清除Bit位计数
+                            JM_OK = 0;             //解码完成标志
+                            Remote_start = 0;
+                            count_high = 0;
+                            EICRA = 0x0A; //INT0下降沿
+                            hw_cm = 0;      ////重复码清零
+                            break;
+                        }
+                }
+            }
+            else
+            {
+
+                //putchar(count_high);
+                if((EX_yb>2)&&(Ex_init==0))
+                {
+                    if((count_high == 1)||(count_high == 3))
+                    {
+                        // if((count_high>=1)&&(count_high<=3))
+                        if(count_high == 1)
+                        {
+                            hw_temp=hw_temp>>1;
+                            //      datain="0";
+                        }
+                        else
+                        {
+                            hw_temp=hw_temp>>1;
+                            hw_temp |= 0x80000000;
+                            //     datain="1";
+                        }
+                        //      putchar(datain);
+                        EX_y_b++;
+                        if(EX_y_b>31)
+                        {
+                            ////红外编码输出
+                            hw_cm = hw_temp;
+                            /*
+                               RED165 = hw_temp&0x000000ff;
+                               putchar(RED165);
+
+                               RED165 = (hw_temp&0x0000ff00)>>8;
+                               putchar(RED165);
+
+                               RED165 = (hw_temp&0x00ff0000)>>16;
+                               putchar(RED165);
+
+                               RED165 = (hw_temp&0xff000000)>>24;
+                               putchar(RED165);
+                             */
+                            ////保存红外接收的参数
+                            if((EX_hy_in !=0)&&(EX_hy_in < 11))
+                            {
+                                EX_hy_save = EX_hy_in;
+                                EX_hy_in = 0;
+                            }
+                            /*
+                               else
+                               {
+                               putlong(hw_temp);
+                            //  EX_hy_in = 0;
+                            }
+                             */
+                            EX_yb=0;
+                            EX_y_b = 0;            //清除Bit位计数
+                            JM_OK = 1;             //解码完成标志
+                            Remote_start = 0;
+                            // count_high = 0;
+                            EICRA = 0x0A; //INT0下降沿
+                        }
+                        count_high = 0;
+                    }
+                    else
+                    {
+                        EX_yb=0;
+                        EX_y_b = 0;            //清除Bit位计数
+                        JM_OK = 0;             //解码完成标志
+                        Remote_start = 0;
+                        count_high = 0;
+                        EICRA = 0x0A; //INT0下降沿
+                    }
+
+                }
+                else
+                {
+                    count_high = 0;
+
+                }
+            }
+
+
+
+        }
+    }
+    // RUN_LED2 = 1;
+    // RUN_LED2 =1;
+}
+
+// External Interrupt 1 service routine
+interrupt [EXT_INT1] void ext_int1_isr(void)
+{
+    // Place your code here
+    TEL_init_chishu2++;
+    putchar(TEL_init_chishu2);
+    if(TEL_init_chishu == TEL_init_chishu2)
+    {
+        RUN_LED2 =0;
+        delay_ms(500);
+        RUN_LED2 =1;
+        delay_ms(500);
+        RUN_LED2 =0;
+        delay_ms(500);
+        RUN_LED2 =1;
+        //     TEL_ID_datemp[0] = 7;
+        telint_temp1 = 1;
+
+        //         TEL_int = TEL_int &(~(0x9200));    /////摘机
+        //            // TEL_int = TEL_int &(~(0x4000));    ///外线信道允许
+        //           hc595fs(TEL_int,4,2);
+        //           tel_yuying_xingdao = 0xffffffff;
+        //           hc595fs(tel_yuying_xingdao,2,4);   ////语音通道允许内线信道
+    }
+    if(TEL_init_chishu < TEL_init_chishu2)
+        TEL_init_chishu2 = 0;
+    // telint_temp1 = 1;
+
+}
+
+// External Interrupt 4 service routine
+
+interrupt [EXT_INT4] void ext_int4_isr(void)
+{
+    TEL_init_chishu1++;
+    putchar(TEL_init_chishu1);
+    if(TEL_init_chishu == TEL_init_chishu1)
+    {
+        RUN_LED2 =0;
+        delay_ms(500);
+        RUN_LED2 =1;
+        TEL_ID_datemp[0] = 8;
+    }
+
+    if(TEL_init_chishu < TEL_init_chishu1)
+        TEL_init_chishu1 = 0;
+}
+
+
+// External Interrupt 5 service routine
+interrupt [EXT_INT5] void ext_int5_isr(void)
+{
+    // Place your code here
+    unsigned char temp_pp;
+    temp_pp = read_8880data();
+    com_tel_data[dtmf_js] = temp_pp;
+    dtmf_js++;
+    dtmf_xianshi = 1;
+    if(dtmf_js > 8)
+        dtmf_js = 0;
+    if(put_dtmf_ok !=0)
+        putchar(temp_pp);
+    putchar(dtmf_js);
+}
+
+// External Interrupt 6 service routine
+interrupt [EXT_INT6] void ext_int6_isr(void)
+{
+    // Place your code here
+
+
+}
+
+// External Interrupt 7 service routine
+interrupt [EXT_INT7] void ext_int7_isr(void)
+{
+    // Place your code here
+
+}
+
+// Timer 0 overflow interrupt service routine
+interrupt [TIM0_OVF] void timer0_ovf_isr(void)
+{
+    TCNT0 = 0x9F; //reload counter value
+    if(HW_char!=0)
+    {
+        TIM0_OVF_js++;
+        if(TIM0_OVF_js>2) TIM0_OVF_js =0;
+        if(TIM0_OVF_js == 0) HW_Pout = 1;
+        else  HW_Pout = 0;
+    }
+    else HW_Pout = 0;
+
+    /*   if(TIM0_OVF_js>50)  TIM0_OVF_js = 0;
+         else
+         {
+         if(TIM0_OVF_js<25)
+         RUN_LED1 =0;
+
+         else
+         RUN_LED1 =1;
+         }
+     */
+
+}
+
+// Timer 1 overflow interrupt service routine
+interrupt [TIM1_OVF] void timer1_ovf_isr(void)
+{
+    // Place your code here
+
+    unsigned char kktemp,kltemp;
+    //HW_F_data = 0x55aa55aa;
+    if(HW_yd!=0)
+    {
+        if(HW_yd <= 2)
+        {
+            if(HW_yd==1)
+            {
+                TCNT1H = 0xF9; //产生9ms脉冲,111Hz
+                TCNT1L = 0xEc;   //效正判断转跳时间
+                //TCNT1H = 0xCF; //setup
+                //TCNT1L = 0x5B;
+                //  TCNT1H = 0xCC; //setup
+                //  TCNT1L = 0x93;
+                // EIMSK="0xF2";//关断外部中断0
+                // EIFR="0xF2"; ////关断外部中断0
+
+                //    HW_Pout = 0;         ////高电平
+                HW_char = 1;
+                // HW_yd = 2;
+
+            }
+            else
+                ////产生4.5ms脉冲,222Hz
+            {
+                // TCNT1H = 0xE7; //setup
+                //  TCNT1L = 0xAE;
+                TCNT1H = 0xFC;
+                TCNT1L = 0xF6;       //效正判断转跳时间
+                //      HW_Pout = 1;          ///低电平
+                HW_char = 0;
+                // HW_yd = 3;
+            }
+            HW_yd++;
+            HW_js = 0;
+            HW_Tjs = 0;
+        }
+        else
+        {
+            if(HW_js <= 32)
+            {
+                if(HW_Tjs == 0)
+                {
+                    ////产生1785Hz(0.56ms)的高电平脉宽
+                    //TCNT1H = 0xFC; //setup
+                    //TCNT1L = 0xB8;
+                    TCNT1H = 0xFF; //setup
+                    TCNT1L = 0x9F;
+                    //    HW_Pout = 0;         ////
+                    HW_char = 1;
+                    HW_Tjs = 1;
+                }
+                else
+                {
+                    if(((HW_F_data>>HW_js)&0x01)!=0)
+                    {   ////1处理
+                        ////产生591Hz(1.69ms)的高电平脉宽
+                        //TCNT1H = 0xF6; //setup
+                        // TCNT1L = 0x16;
+                        TCNT1H = 0xFE; //产生9ms脉冲,111Hz
+                        TCNT1L = 0xDC;   //效正判断转跳时间
+                    }
+                    else
+                    {
+                        ////产生1769Hz(0.565ms)的高电平脉宽
+                        // TCNT1H = 0xFC; //setup
+                        //  TCNT1L = 0xB8;
+                        TCNT1H = 0xFF; //产生9ms脉冲,111Hz
+                        TCNT1L = 0x9E;   //效正判断转跳时间
+                    }
+                    //      HW_Pout = 1;         ////
+                    HW_char = 0;
+                    HW_Tjs = 0;
+                    HW_js++;
+                }
+
+            }
+            else
+            {
+                if(HW_js ==33)
+                {
+                    TCNT1H = 0xFF;
+                    TCNT1L = 0x9F;
+                    //TCNT1L = 0x9e;       //效正判断转跳时间
+                    // TCNT1H = 0xFc;
+                    // TCNT1L = 0xf0;       //效正判断转跳时间
+                    //      HW_Pout = 0;         ////高电平
+                    HW_char = 1;
+                    HW_js++;
+                }
+                if(HW_js >33)
+                {
+                    //TCNT1H = 0xF9; //产生9ms脉冲,111Hz
+                    //TCNT1L = 0xEC; //reload counter low value
+                    // TCNT1H = 0xCF; //setup
+                    // TCNT1L = 0x5B;
+                    TCNT1H = 0xF9; //产生9ms脉冲,111Hz
+                    TCNT1L = 0xEc;   //效正判断转跳时间
+                    HW_Tjs = 0;
+                    TIMSK = 0x41; //timer1 不中断
+                    EIMSK="0xF3";  //////打开外部中断0
+                    EIFR="0xF3";   ////////打开外部中断0
+                    //      HW_Pout = 1;         ////高电平
+                    HW_char = 0;
+                    HW_yd =0;
+                    //putchar(HW_js);
+                    HW_js=0;
+                    // HW_Pout = 1;         ////高电平
+                }
+            }
+        }
+    }
+    else
+    {
+        TCNT1H = 0xF9; //产生9ms脉冲,111Hz
+        TCNT1L = 0xEC; //reload counter low value
+        //  TCNT1H = 0xCF; //setup
+        //  TCNT1L = 0x5B;
+        HW_Tjs = 0;
+        TIMSK = 0x41; //timer1 不中断
+        EIMSK="0xF3";  //////打开外部中断0
+        EIFR="0xF3";   ////////打开外部中断0
+        //    HW_Pout = 1;         ////高电平
+        HW_char = 0;
+        HW_yd =0;
+        //putchar(HW_js);
+        HW_js=0;
+        //    HW_Pout = 1;         ////高电平
+
+    }
+}
+
+
+
+
+// Timer 2 overflow interrupt service routine
+interrupt [TIM2_OVF] void timer2_ovf_isr(void)
+{
+    TCNT2 = 0x29; //reload counter value
+    // unsigned int tel_ttl;
+    if(dtmf_xianshi != 0)
+        dtmf_xianshi++;
+    if((dtmf_js != 0)&&(dtmf_xianshi == 121))
+    {
+        Tel_zhixing_biaozhi = 1;
+        //     putchar(0xf2);
+        //     putchar(dtmf_js);
+    }
+    if(dtmf_xianshi==168)
+    {
+        //dtmf_xianshi = 0;
+        dtmf_js =0;
+    }
+    if(dtmf_xianshi==1500)
+    {
+        dtmf_xianshi = 0;
+        Tel_zhixing_biaozhi = 2;
+    }
+
+    count_temp++;
+    if(count_temp<150)
+    {
+        if(count_temp<75)
+        {
+            RUN_LED1 = 1; //测试运行
+            //HW_Pout = 1;    //测试红外
+        }
+        else
+        {
+            RUN_LED1 = 0;    //测试运行
+            //HW_Pout = 0;   //测试红外
+        }
+        if(TEL_zn_js != 0)
+        {
+            if((TelZhenLingData != 0)&&(count_temp<100))
+            {
+                TEL_int |= TelZhenLingData;
+                TEL_zn_biaozhi = 0;           //////振铃中标志
+                putint(TEL_int);
+                hc595fs(TEL_int,4,2);      //控制功能继电器释放。0x0000AAxx,xx振铃控制单元,AA D0为1号外线通道允许,D1为2号外线通道允许,D3为回铃音乐通道允许,D4为DTMF通道允许,D6为2号外线摘机,D7为1号外线摘机。
+            }
+            if((TelZhenLingData != 0)&&(count_temp>100))
+            {
+                TEL_int = TEL_int&0xff00;
+                TEL_zn_biaozhi = 1;           //////振铃中标志
+                putint(TEL_int);
+                hc595fs(TEL_int,4,2);      //控制功能继电器释放。0x0000AAxx,xx振铃控制单元,AA D0为1号外线通道允许,D1为2号外线通道允许,D3为回铃音乐通道允许,D4为DTMF通道允许,D6为2号外线摘机,D7为1号外线摘机。
+                if((TEL_zn_js != 0)&&(count_temp == 149))
+                    TEL_zn_js++;
+            }
+            //    putchar(TEL_zn_js);
+        }
+        else
+            TEL_zn_biaozhi = 1;   //////振铃中标志
+        if(TEL_zn_js > 30)  TEL_zn_js = 0;
+    }
+    else
+    {
+        count_temp = 0;
+        EX_hy_in =0;
+    }
+}
+
+
+// Timer 3 overflow interrupt service routine
+interrupt [TIM3_OVF] void timer3_ovf_isr(void)
+{
+    TCNT3H = 0xFD; //reload counter high value
+    TCNT3L = 0x4D; //reload counter low value
+
+    if((EX_yb != 0)&&(EX_yb<3))      count_high++;
+    if((EX_yb>2)&&(Ex_init != 0))    count_high++;
+    //////功能：红外接收超时复位和解重复码
+    if(EX_yb != 0)
+    {
+        HW_intjs++;
+        if(HW_intjs>180)
+        {
+            HW_intjs = 0;
+            EX_yb=0;
+            EX_y_b = 0;            //清除Bit位计数
+            JM_OK = 0;             //解码完成标志
+            Remote_start = 0;
+            count_high = 0;
+            EICRA = 0x0A; //INT0下降沿
+        }
+    }
+    else HW_intjs = 0;
+
+}
+
+// Declare your global variables here
+
+void main(void)
+{
+    // unsigned char RED165;
+    // Declare your local variables here
+
+    // Input/Output Ports initialization
+    // Port A initialization
+    // Func7=Out Func6=In Func5=In Func4=Out Func3=Out Func2=Out Func1=Out Func0=Out
+    // State7=0 State6=T State5=T State4=0 State3=0 State2=0 State1=0 State0=0
+    PORTA=0x00;
+    DDRA=0x9F;
+
+    // Port B initialization
+    // Func7=Out Func6=Out Func5=In Func4=Out Func3=In Func2=In Func1=In Func0=In
+    // State7=0 State6=0 State5=T State4=0 State3=T State2=T State1=T State0=T
+    PORTB=0x00;
+    //DDRB=0xD0;
+    DDRB=0x10;
+
+    // Port C initialization
+    // Func7=In Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In
+    // State7=T State6=T State5=T State4=T State3=T State2=T State1=T State0=T
+    PORTC=0x00;
+    DDRC=0xf0;
+
+    // Port D initialization
+    // Func7=In Func6=Out Func5=Out Func4=Out Func3=Out Func2=In Func1=In Func0=In
+    // State7=T State6=0 State5=0 State4=0 State3=0 State2=T State1=T State0=T
+    PORTD=0x00;
+    DDRD=0x78;
+
+    // Port E initialization
+    // Func7=In Func6=In Func5=In Func4=Out Func3=Out Func2=Out Func1=Out Func0=In
+    // State7=T State6=T State5=T State4=0 State3=0 State2=0 State1=0 State0=T
+    PORTE=0x0f;
+    DDRE=0x0f;
+    DDRE=0x0E;
+
+    // Port F initialization
+    // Func7=Out Func6=In Func5=Out Func4=Out Func3=Out Func2=Out Func1=Out Func0=Out
+    // State7=0 State6=T State5=0 State4=0 State3=0 State2=0 State1=0 State0=0
+    PORTF=0x00;
+    DDRF=0xBF;
+
+    // Port G initialization
+    // Func4=Out Func3=In Func2=In Func1=In Func0=In
+    // State4=0 State3=T State2=T State1=T State0=T
+    PORTG=0x00;
+    DDRG=0x10;
+
+    //TIMER0 initialize - prescale:1
+    // WGM: Normal
+    // desired value: 113KHz
+    // actual value: 114.010KHz (0.9%)
+
+    TCCR0 = 0x00; //stop
+    ASSR  = 0x00; //set async mode
+    TCNT0 = 0x9F; //set count
+    OCR0  = 0x61;
+    TCCR0 = 0x01; //start timer
+
+
+    ////TIMER1 initialize - prescale:64
+    // desired value: 111Hz
+    // actual value: 111.052Hz (0.0%)
+
+    TCCR1B = 0x00; //stop
+    TCNT1H = 0xF9; //setup
+    TCNT1L = 0xEC;
+    OCR1AH = 0x06;
+    OCR1AL = 0x14;
+    OCR1BH = 0x06;
+    OCR1BL = 0x14;
+    ICR1H  = 0x06;
+    ICR1L  = 0x14;
+    TCCR1A = 0x00;
+    TCCR1B = 0x03; //start Timer
+
+
+    //TIMER2 initialize - prescale:1024
+    // WGM: Normal
+    // desired value: 50Hz
+    // actual value: 50.232Hz (0.5%)
+    TCCR2 = 0x00; //stop
+    TCNT2 = 0x29; //setup
+    OCR2  = 0xD7;
+    TCCR2 = 0x05; //start
+
+    //Timer3计数时钟clk/8
+    //Timer3计数初值0xFD4D,每0.5ms产生溢出中断
+    //允许Timer3溢出中断
+    //频率2KHz
+
+    TCCR3B = 0x00; //stop
+    TCNT3H = 0xFD; //setup
+    TCNT3L = 0x4D;
+    OCR3AH = 0x02;
+    OCR3AL = 0xB3;
+    OCR3BH = 0x02;
+    OCR3BL = 0xB3;
+    ICR3H  = 0x02;
+    ICR3L  = 0xB3;
+    TCCR3A = 0x00;
+    TCCR3B = 0x02; //start Timer
+
+    // External Interrupt(s) initialization
+    // INT0: On
+    // INT0 Mode: 下降沿
+    // INT1: On
+    // INT1 Mode: 下降沿
+    // INT2: Off
+    // INT3: Off
+    // INT4: On
+    // INT4 Mode: 下降沿
+    // INT5: On
+    // INT5 Mode: 下降沿
+    // INT6: On
+    // INT6 Mode: 下降沿
+    // INT7: On
+    // INT7 Mode: 下降沿
+    /*
+       EICRA=0x0F;
+       EICRB=0xF0;
+       EIMSK=0xF3;
+       EIFR=0xF3;
+     */
+    MCUCR = 0x00;
+
+    EICRA=0x0A;
+    EICRB=0xAA;
+    EIMSK=0xF3;
+    EIFR=0xF3;
+
+
+    //EIMSK=0xF2;//关断外部中断0
+    //EIFR=0xF2;
+
+
+    // Timer(s)/Counter(s) Interrupt(s) initialization
+    //TIMSK=0x45;
+    TIMSK=0x41;
+    ETIMSK=0x04;
+
+
+    //UART0 initialize
+    // desired baud rate: 19200
+    // actual: baud rate:19200 (0.0%)
+    /*
+       UCSR0B = 0x00; //disable while setting baud rate
+       UCSR0A = 0x00;
+       UCSR0C = 0x06;
+       UBRR0L = 0x23; //set baud rate lo
+       UBRR0H = 0x00; //set baud rate hi
+       UCSR0B = 0xD8;
+     */
+    // USART0 initialization
+    // Communication Parameters: 8 Data, 1 Stop, No Parity
+    // USART0 Receiver: On
+    // USART0 Transmitter: On
+    // USART0 Mode: Asynchronous
+    // USART0 Baud rate: 9600
+    /*
+       UCSR0A=0x00;
+       UCSR0B=0xD8;
+       UCSR0C=0x06;
+       UBRR0H=0x00;
+       UBRR0L=0x47;
+     */
+    // USART0 initialization
+    // Communication Parameters: 8 Data, 1 Stop, No Parity
+    // USART0 Receiver: On
+    // USART0 Transmitter: On
+    // USART0 Mode: Asynchronous
+    // USART0 Baud rate: 19200
+    UCSR0A=0x00;
+    UCSR0B=0xD8;
+    UCSR0C=0x06;
+    UBRR0H=0x00;
+    UBRR0L=0x23;
+    // USART1 initialization
+    // Communication Parameters: 8 Data, 1 Stop, No Parity
+    // USART1 Receiver: On
+    // USART1 Transmitter: On
+    // USART1 Mode: Asynchronous
+    // USART1 Baud rate: 9600
+    UCSR1A=0x00;
+    UCSR1B=0xD8;
+    UCSR1C=0x06;
+    UBRR1H=0x00;
+    UBRR1L=0x47;
+
+
+    // Analog Comparator initialization
+    // Analog Comparator: Off
+    // Analog Comparator Input Capture by Timer/Counter 1: Off
+    ACSR=0x80;
+    SFIOR=0x00;
+
+    XDIV  = 0x00; //xtal divider
+    XMCRA = 0x00; //external memory
+
+    // DS1302 Real Time Clock initialization
+
+    // Trickle charger: Off
+    HW_Pout = 1;
+    HW_Tjs = 0;
+    TIM0_OVF_js = 0;
+    HW_Fun = 32;
+    HW_char = 0;
+    telint_temp1 = 0;
+    RUN_LED1 = 1;
+    RUN_LED2 = 1;
+    Hc_data1 = 0;        //dara1=0
+    Hc_data2 = 0;        //dara2=0
+    Hc_data3 = 0;        //dara3=0
+    Hc_data4 = 0;        //dara4=0
+    HC_CE &= ~0x0c;      //Ce=0
+    HC_CE &= ~Hc_sclk1;  //sclk = 0
+    TEL_zj = TEL_zt_data = EX_yb =TEL_zn_data = JM_OK = TEL_bj = Remote_start =EX_hy_save = Ret_hy_mpuRX = EX_hy_in = Tel_zhixing_biaozhi = dtmf_xianshi = TEL_MiMa_Ok = PC_com_ok = dtmf_js= TEL_zn_js =put_dtmf_ok = TelZhenLingData = 0;
+    POW_kongzhi = 0xffff;
+    ////hc595发送数据data发送的数据 ,chan数据通道,wen_ch发送数据的位数8的整倍数
+    hc595fs(POW_kongzhi,1,2);      //控制功能继电器释放0x0000xxyy,xx为功率控制单元,yy的８７６BIT为回铃通道选择和５４３BIT拨号通道选择。
+    TEL_int = 0x3300;
+    hc595fs(TEL_int,4,2);      //控制功能继电器释放。0x0000AAxx,xx振铃控制单元,AA D0为1号外线通道允许,D1为2号外线通道允许,D3为回铃音乐通道允许,D4为DTMF通道允许,D6为2号外线摘机,D7为1号外线摘机。
+    ////
+    tel_yuying_xingdao = 0x00000000;
+    hc595fs(tel_yuying_xingdao,2,4);   ////语音通道允许内线信道
+    ////判断EEPROM的内容，并进行初始化。
+    if(EEPROM_read(TEL_Max_Zl_BASC) > 12)
+        Mpu_Eeprom_init();
+    TEL_init_chishu = EEPROM_read(TEL_Max_Zl_BASC);
+    delay_ms(2);
+#asm("sei")
+
+    HW_Pout = 1;    ////测试红外
+    Yuying_int = 0x0000;
+    hc595fs(Yuying_int,3,2);   ////0xaabb语音通道允许,bb低8BIT为内线选择允许,aa高字节低半字节为语音选通
+    //MT8880初始化
+    delay_ms(150);//必须延时100ms以上
+
+    Tel_call_data = read_8880status();  //软件复位
+    writecrab(0x00,0x00);
+    writecrab(0x08,0x00);
+    Tel_call_data = read_8880status();
+    delay_ms(1000);//等待1000ms
+    writecrab(0x0d,0x00);//置为接收拨号状态
+
+
+
+    while (1)
+    {
+        if(telint_temp1 == 1)
+        {
+            Yuying_int = 0x01;
+            hc595fs(Yuying_int,3,1);
+            telint_temp1 = 0;
+        }
+        if(Tel_zhixing_biaozhi == 2)
+        {
+            Yuying_int = 0x00;
+            hc595fs(Yuying_int,3,1);
+            Tel_zhixing_biaozhi = 0;
+        }
+        //  Tel_init();
+
+
+
+        // putchar(RED165);
+
+        if(JM_OK != 0)
+        {
+            HW_po_kz(hw_temp);
+
+            //   RED165 = hw_temp&0x000000ff;
+
+            putlong(hw_temp);
+            JM_OK = 0;
+            //    hw_temp = 0;
+        }
+
+
+        if(PC_com_ok != 0)  com_pc_fun();
+
+        if(Tel_zhixing_biaozhi == 1)
+        {
+            putchar(dtmf_js);
+            com_tel_fun(dtmf_js);
+            dtmf_js =0;
+            Tel_zhixing_biaozhi = 0;
+        }
+
+        if(EX_hy_save !=0)
+        {
+            Save_hy_Eeprom(EX_hy_save);
+            EX_hy_save = 0;
+        }
+        if(Ret_hy_mpuRX != 0)
+        {
+            //   putchar(0x55);
+            //   putchar(0xaa);
+            //   putchar(0x55);
+            //   putchar(0xaa);
+            //   putchar(0x30);
+            putchar(Ret_hy_mpuRX);
+
+
+            hw_temp = Read_hy_Eeprom(Ret_hy_mpuRX);
+            putlong(hw_temp);
+
+            Ret_hy_mpuRX = 0;
+        }
+        //   read_8880data();
+        //  if((EX_hy_in !=0)&&(EX_hy_in > 11))
+        //     {
+        //      putlong(hw_temp);
+        //  EX_hy_in = 0;
+        //    }
+        if((baojing&0x0f)!=0)
+            putchar(baojing&0x0f);
+    }
+}
+
+
+//HC595单时钟发生
+void hc595_sck(void)
+{
+    HC_CE |= Hc_sclk1;
+    delay_us(1);
+    HC_CE &= ~Hc_sclk1;
+    delay_us(1);
+}
+//HC595使能发生
+void hc595_ce(unsigned char CHAK)
+{
+    if(CHAK==1)
+    {
+        HC_CE |=Hc_ce1;       //Ce=1
+        delay_us(1);
+        HC_CE &= ~Hc_ce1;     //Ce=0
+
+    }
+    if(CHAK==2)
+    {
+        HC_CE |=Hc_ce2;       //Ce=1
+        delay_us(1);
+        HC_CE &= ~Hc_ce2;      //Ce=0
+    }
+    if(CHAK==3)
+    {
+        HC_CE |=Hc_ce3;       //Ce=1
+        delay_us(1);
+        HC_CE &= ~Hc_ce3;      //Ce=0
+    }
+    if(CHAK==4)
+    {
+        HC_CE |=Hc_ce4;       //Ce=1
+        delay_us(1);
+        HC_CE &= ~Hc_ce4;      //Ce=0
+    }
+}
+//HC595数据BIT发生
+void hc595_da(unsigned char CHC_AK,unsigned char cHC_data)
+{
+    if(cHC_data != 0)
+    {
+        if(CHC_AK==1)
+            Hc_data1 = 1;       //Ce=1
+
+        if(CHC_AK==2)
+            Hc_data2 = 1;       //Ce=1
+
+        if(CHC_AK==3)
+            Hc_data3 = 1;       //Ce=1
+
+        if(CHC_AK==4)
+            Hc_data4 = 1;       //Ce=1
+    }
+    else
+    {
+        if(CHC_AK==1)
+            Hc_data1 = 0;       //Ce=0
+
+        if(CHC_AK==2)
+            Hc_data2 = 0;       //Ce=0
+
+        if(CHC_AK==3)
+            Hc_data3 = 0;       //Ce=0
+
+        if(CHC_AK==4)
+            Hc_data4 = 0;       //Ce=0
+
+    }
+    delay_us(1);
+}
+
+//hc595发送数据data发送的数据 ,chan数据通道,wen_ch发送数据的位数8的整倍数
+void hc595fs(unsigned long data,unsigned char chan,unsigned char wen_ch)
+{
+    unsigned char ll,li,da_ta;
+    for(ll=0;ll<wen_ch;ll++)
+    {
+        if(ll!=0)
+            data="data">>8;
+        da_ta = data &0xff;
+        for(li=0;li<8;li++)
+        {
+            if((da_ta&0x01)!=0)
+                hc595_da(chan,1);
+            else
+                hc595_da(chan,0);
+            hc595_sck();               //1 CLK
+            da_ta=da_ta>>1;
+        }
+        hc595_ce(chan);
+    }
+    hc595_ce(chan);
+}
+
+
+/*
+//     ;165读取串行检测数据
+RAED165: CLR BSSN164     ;置位74H165
+CALL DELAY5MS
+MOV SCON,#10H  ;置位串行口，并允许接收
+SETB BSSN164   ;关闭置位74H165
+WAIT:    JNB RI,WAIT    ;未接收完一帧则等待
+CLR RI        ;清除接收标志，准备下一次接收
+CLR REN       ;禁止移位
+MOV A,SBUF    ;读入数据
+MOV RXD_DXA,A  ;传送数据到寄存器
+;      CALL DELAY2MS
+RET
+ */
+//////  165数据输入
+/*
+   unsigned char  Read165(void)
+   {
+   unsigned char yzll,data165;
+   data_165 = 0;
+   In_165; //读入数据端方向设置为输入
+   Yz_165 = 1;
+   delay_ms(250);
+   Scl_165 = 0;
+   Yz_165 = 0;    //预置165,读入数据
+   delay_ms(250);
+   Yz_165 = 1;
+   delay_ms(250);
+
+   for(yzll=0;yzll<8;yzll++)
+   {
+   Scl_165 = 0;
+   delay_ms(250);
+   Scl_165 = 1;
+   if(data_165!=0)
+   data165 |= 0x01;
+   data165 = data165<<1;
+   delay_ms(250);
+
+   }
+   Scl_165 = 0;
+   return  data165;
+   }
+ */
+
+
+void  Tel_out_call(void)
+{
+    //if()
+
+
+}
+
+void Power_kongzhi(unsigned char P_chen)
+{
+    unsigned int c_temp;
+
+    P_chen = ~P_chen;
+    // putchar(P_chen);
+    c_temp =P_chen;
+    c_temp = c_temp<<8;
+    POW_kongzhi =  POW_kongzhi&0x00ff;
+    POW_kongzhi |= c_temp;
+    hc595fs( POW_kongzhi,1,2);      //控制功能继电器释放。
+}
+
+void HW_po_kz(unsigned long hwtem)
+{
+    unsigned char h_w_ttemp;
+    if((JM_OK != 0)&&(hwtem != 0))
+    {
+        h_w_ttemp = (hwtem&0x00ff0000)>>16;
+        // putchar(h_w_ttemp);
+        switch(h_w_ttemp)
+        {
+            case 0x11:
+                {
+
+                    Power_kongzhi(0x01);
+                    break;
+                }
+            case 0x12:
+                {
+
+                    Power_kongzhi(0x02);
+                    break;
+                }
+            case 0x13:
+                {
+
+                    Power_kongzhi(0x04);
+                    break;
+                }
+            case 0x14:
+                {
+
+                    Power_kongzhi(0x008);
+                    break;
+                }
+            case 0x15:
+                {
+
+                    Power_kongzhi(0x10);
+                    break;
+                }
+            case 0x16:
+                {
+
+                    Power_kongzhi(0x20);
+                    break;
+                }
+            case 0x17:
+                {
+
+                    Power_kongzhi(0x40);
+                    break;
+                }
+            case 0x18:
+                {
+
+                    Power_kongzhi(0x80);
+                    break;
+                }
+            default:
+                {
+
+                    Power_kongzhi(0x00);
+                    break;
+                }
+
+        }
+    }
+
+}
+
+
+void Tel_zhengling_on(unsigned char Telzl_chen)
+{
+    unsigned int tel_zl_temp;
+
+    switch(Telzl_chen)
+    {
+        case 0x11:
+            {
+
+                Power_kongzhi(0x01);
+                break;
+            }
+        case 0x12:
+            {
+
+                Power_kongzhi(0x02);
+                break;
+            }
+
+        default:
+            {
+
+                Power_kongzhi(0x00);
+                break;
+            }
+
+    }
+    //  TEL_int
+}
+
+void Tel_zn_kongzhi(unsigned char Tel_chen)
+{
+    unsigned int c_temp;
+    c_temp =Tel_chen;
+    //     c_temp = c_temp<<8;
+    POW_kongzhi =  POW_kongzhi&0xff00;
+    POW_kongzhi |= c_temp;
+    hc595fs( POW_kongzhi,3,2);      //控制功能继电器释放。
+}
+

@@ -1,0 +1,352 @@
+---------------------------------------------------------------------------------------------------
+Protocol
+---------------------------------------------------------------------------------------------------
+Gen3固件所使用的通信协议
+---------------------------------------------------------------------------------------------------
+Devices
+---------------------------------------------------------------------------------------------------
+在这个系统中，本质上有三种不同的设备:
+    Host Device     -   产生命令以及请求的计算机，例如ReplicatorG.
+    Master Device   -   这是主微控制器设备.在Gen3电子中，这是一个包含Sanguino的RepRap主板.
+                        它负责从Host device接收命令，然后，自己执行或者委托给其他slave device处理.
+    Slave Device    -   这是负责一个小的子系统的微控制器设备，例如extruder、toolhead、温度控制设备.
+                        它从Master device接收命令并执行.
+---------------------------------------------------------------------------------------------------
+Communication Channels
+---------------------------------------------------------------------------------------------------
+协议自身分成两个不同的通信通道:
+    Host CPU    -> Motherboard      -   USB->TTL serial link
+    Motherboard -> Slave            -   RS485
+---------------------------------------------------------------------------------------------------
+Firmware
+---------------------------------------------------------------------------------------------------
+ArduinoSlaveExtruder        -   设计运行在v2.x版本的Extruder Controller上
+    1.  下载并解压固件
+    2.  在Arduino IDE中打开sketch
+    3.  如果需要，编辑Configuration.h文件
+    4.  可选: 如果你使用的是一个非标准的热敏电阻，编辑ThermistorTable.h文件
+    5.  选择"Arduino Diecimila",在IDE的boards菜单下，并进行upload
+SanguinoMaster              -   设计运行在v1.x版本的RepRap Motherboard上
+    1.  下载并解压固件
+    2.  在Arduino IDE中打开sketch
+    3.  如果需要，编辑Configuration.h文件
+    4.  选择"Sanguino",从IDE的boards菜单中，并进行upload
+---------------------------------------------------------------------------------------------------
+Host Control Software
+---------------------------------------------------------------------------------------------------
+    ReplicatorG
+
+
+
+
+
+---------------------------------------------------------------------------------------------------
+AVR Programmers
+---------------------------------------------------------------------------------------------------
+Programmer              Arduino software support        644     1284    1280    1286    1287
+USBTiny                 Y                               N       N       N       N       N
+Pololu USB AVR          ?                               Y       Y       Y?      Y?      Y?
+AVR ISP MK II           Y                               Y       Y       Y?      Y?      Y?
+USBasp                  Y                               Y       Y       Y       Y?      Y?
+Arduino as programmer   Y                               Y       Y?      Y       Y?      Y?
+Parallel programmer     Y                               Y       Y?      Y       Y?      Y?
+
+---------------------------------------------------------------------------------------------------
+avrdude
+---------------------------------------------------------------------------------------------------
+avrdude -c%programmer%              -   编程器的类型，例如stk500v2
+        -b%baud%                    -   波特率,例如115200
+        -D                          -   Disable auto erase for flash memory
+        -v                          -   详细输出
+        -p%part%                    -   指定AVR设备，例如m2560
+        -P%port%                    -   指定连接端口
+        -Uflash:w:%firmware%:i      -   内存操作说明
+                                        <memtype>       flash
+                                        r|w|v           
+                                        <filename>      例如，MBv2.4-2560\MB-mb24-2560-v3.0.hex
+avrdude -v 
+        -pm168 
+        -cusbtiny 
+        -e                          -   擦除
+        -Ulock:w:0x3F:m
+        -Uefuse:w:0x00:m 
+        -Uhfuse:w:0xDD:m 
+        -Ulfuse:w:0xEE:m
+
+avrdude -p partno options ...
+    告诉编程器当前连接的是什么类型的MCU,partno参数是列举在配置文件中的MCU ID
+        -b baudrate
+    指定波特率
+        -B bitclock
+    指定bit clock period
+        -c programmer-id
+    指定所使用的编程器
+        -C config-file
+    使用指定配置文件中的配置数据，包括所有的编程器以及part定义
+        -D
+    禁止自动擦除flash
+        -e
+    执行chip擦除操作
+        -E exitspec[,...]
+    reset-noreset-vcc-novcc
+        -F
+        -i delay
+        -n
+    No-write,禁止向MCU写数据，调试AVRDUDE的时候有用
+        -o
+        -P port
+        -q
+        -u
+        -t
+        -U memtype:op:filename[:format]
+            calibration         -   一个或几个字节的RC震荡器校准数据
+            eeprom              -   设备的EEPROM
+            efuse               -   extended fuse byte
+            flash               -   设备的ROM
+            fuse                -   The fuse byte in devices that have only a single fuse byte
+            hfuse               -   fuse高字节
+            lfuse               -   fuse低字节
+            lock                -   lock字节
+            signature           -   三个字节的设备ID
+
+            r                   -   从设备上指定存储区域读取数据并写入到指定文件
+            w                   -   从指定文件读取数据写入到设备制定存储区域
+            v                   -   verify 操作
+
+            i                   -   Intel Hex
+            s                   -   Motorola S-record
+            r                   -   raw binary,小端排列
+            m                   -   immediate mode;命令行直接指定byte-values
+            a                   -   auto detect
+            d                   -   decimal
+            h                   -   hexadecimal
+            o                   -   octal
+            b                   -   binary
+        -v    
+        -V
+        -x extended_param
+        -y
+        -Y cycles
+
+===================================================================================================
+hfuse
+===================================================================================================
+hfuse-7     
+    0       使能OCD
+    1
+hfuse-6
+    0       使能JTAG
+    1
+hfuse-5
+    0       使能串口编程以及数据下载
+    1
+hfuse-4
+    0       watch dog timer always on
+    1       
+hfuse-3
+    0       擦除时保存EEROM中的数据 
+    1       
+hfuse-2:1
+    00      4096words       0x7000
+    01      2048words       0x7800
+    10      1024words       0x7C00
+    11      5124words       0x7E00
+hfuse-0
+    0       selcet reset sector
+    1       
+===================================================================================================
+lfuse
+===================================================================================================
+lfuse-7
+            8分频
+lfuse-6
+            时钟输出
+lfuse-5:4
+            SUT1:0,选择start-up时间
+lfuse-3:0
+            CLKSEL3:0
+            1111-1000,low power Crystall Oscillator
+            0111-0110,full swing crystal Oscillator
+            0101-0100,low frequency crystal Oscillator
+            0011     ,internal 128Khz RC Oscillator
+            0010     ,calibrated internal RC Oscillator
+            0000     ,external clock
+            0001     ,reserved
+===================================================================================================
+efuse
+===================================================================================================
+efuse-7:3
+            reserved
+efuse-2:0   
+            BODLEVEL2:0(Brown-out Detector trigger level)
+            111         BOD Disabled
+            110         1.7-1.8-2.0
+            101         2.5-2.7-2.9
+            100         4.1-4.3-4.5
+            011~000     预留
+===================================================================================================
+lock
+===================================================================================================
+lock-7:6
+            预留
+lock-5:2    Boot lock bit(12-11,02-01)
+            11,         对SPM或者(E)LPM访问应用程序区不加限制
+            10，        SPM不允许写应用程序区
+            00，        SPM不允许写应用程序区，(E)LPM从Boot Loader全区执行不允许读应用程序区.
+                        如果中断向量被放置到Bootloader区，当从应用程序区执行时，中断被禁止.
+            01,         (E)LPM从Bootloader区执行时不允许读应用程序区.
+                        如果中断向量被放置到Bootloader区，当从应用程序区执行时，中断被禁止.
+lock-1:0    Lock Bit Protection Modes(LB2,LB1)
+            11,         无内存保护
+            10，
+            00，
+            
+
+    
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------
+Extruder Controller
+---------------------------------------------------------------------------------------------------
+PWM Driver Board + DC Motor Driver Board + Temperature Sensor Board + RS485 + Arduino
+这是一个all-in-one的解决方案用以控制extruder.
+    Onboard atmega168 - program it just like an Arduino because it is an Arduino.
+    3 x MOSFET drivers for controlling up to 14A @ 12V. Perfect for heaters, fans, solenoids, etc.
+    2 x H-Bridges capable of up to 2A each. Control 2 motors, or control one stepper motor.
+    A temperature sensor circuit for reading the standard 100K thermistor.
+    RS485 connection for noise-free communications with the motherboard.
+    IDC header for connecting a Magnetic Rotary Encoder.
+    Polarized ICSP header for simple, easy programming.
+    It mounts directly to the Pinch Wheel Extruder!
+    It is plug and play with the RepRap Motherboard. 
+
+Interface-Pinout
+    H-Bridges
+        Name        Function    Common Usage
+        1A          正极        Motor1
+        1B          负极        Motor1
+        2A          正极        Motor2
+        2B          负极        Motor2
+
+    MOSFETS
+        name        Has PWM     Common Usage
+        A           No          Valve
+        B           Yes         Heater
+        C           No          Fan
+
+    Thermistor
+        name        Function
+        1           One end of the thermistor
+        2           The other end of a thermistor
+
+    RS485   Comms + Power
+        name        Function
+        1           RS485 A
+        2           RS485 B
+        3           +12V
+        4           +12V
+        5           +12V
+        6           GND
+        7           GND
+        8           GND
+
+    Quadrature Input
+        name        Function        Arduino Pin
+        1           N/A             N/A
+        2           N/A             N/A
+        3           N/A             N/A
+        4           N/A             N/A
+        5           N/A             N/A
+        6           N/A             N/A
+        7           Quadrature B    3
+        8           Quadrature A    2
+        9           GND             N/A
+        10          +5v             N/A
+
+    Serial Header
+        name        Color           Function
+        1           Black           GND
+        2           Brown           CTS#
+        3           Red             VCC
+        4           Orange          TXD
+        5           Yellow          RXD
+        6           Green           RTS#
+
+    I2C Headers
+        PIN         Function
+        1           VCC(5v)
+        2           GND(0v)
+        3           SDA
+        4           SCL
+
+    Servo Headers
+        PIN         Function
+        1           Signal
+        2           VCC(5V)
+        3           GND(0v)
+
+
+
+
+---------------------------------------------------------------------------------------------------
+Motherboard
+---------------------------------------------------------------------------------------------------
+主板是Gen3电子背后的大脑,核心是一个Sanguino——Arduino兼容(powered by ATMEGA644P)
+它具有需要连接器用以链接种类繁多的外设一便于驱动RepRap设备.它具有三个不进电机驱动器插头,
+4个RJ45连接器用于链接Extruder Controller Boards,不仅如此，还包括SD卡以及ATX电源插头.
+    Onboard atmega644p - 64K flash space, 4k ram, 32 I/O pins, Arduino compatible.
+    3 x Stepper driver connectors with min/max inputs.
+    Built-in SD card socket for printing from file and buffering large print jobs.
+    RS485 connection for noise-free communications with extruder / toolhead controllers.
+    ATX power connector for power. It can also turn the power supply on and off.
+    Headers to allow existing Sanguinos to plug straight in.
+    I2C headers for simple hookup of external peripherals.
+    On/Off switch for instant-kill and simple control of the entire system. 
+
+Interface-Pinout
+    Stepper Motor Headers
+        Pin     Name        Function
+        1       N/C         N/A
+        2       GND         
+        3       Step        没一个脉冲会驱动步进点击往期望的方向步进一个步
+        4       Dir         正/负分别代表两个方向
+        5       Enable      
+        6       Min         限位开关-min
+        7       Max         限位开关-max
+        8       GND
+        9       GND
+        10      GND
+
+    RS485 Comms + Power
+        name        Function
+        1           RS485 A
+        2           RS485 B
+        3           +12V
+        4           +12V
+        5           +12V
+        6           GND
+        7           GND
+        8           GND
+
+    Serial Header
+        name        Color           Function
+        1           Black           GND
+        2           Brown           CTS#
+        3           Red             VCC
+        4           Orange          TXD
+        5           Yellow          RXD
+        6           Green           RTS#
+
+    I2C Header
+        PIN         Function
+        1           VCC(5v)
+        2           GND(0v)
+        3           SDA
+        4           SCL
+
+    SD Card Slot
+    ATX Power Supply Header

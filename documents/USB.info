@@ -1,0 +1,238 @@
+USB是为了解决速度、扩展能力、易用性而生的.94年11月被提出，95年11月制定了0.9版本，96年制定了1.0版本.
+98年USB1.1的出现，忽如一夜春风来.99年提出的USB2.0理论上可以达到480Mbps的速度.
+
+USB最初的设计目标是替代串行、并行等各种低速总线，以达到一种单一类型的总线连接各种不同的设备.
+USB的各个版本是兼容的，每个USB2.0控制器带有3个芯片，根据设备的识别方式将信号发送到正确的控制芯片.
+我们可以将1.1设备连接到2.0的控制器上使用，不过它只能达到1.1的速度.同时也可以将2.0的设备连接到1.1
+的控制器上，不过不能指望它能以2.0的速度运行.
+
+Linux对USB1.1和2.0都是支持的.
+The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
+The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
+OHCI和UHCI虽然支持的都是1.1的控制器，但是支持的硬件范围不一样.
+
+USB树:  USB连接、USB host controller、USB device:hub&func
+USB host controller
+    在一个USB系统中只能有一个host,即，主机.而USB和主机的接口就是host controller.
+    一个主机可以支持多个host controller,例如分别属于不同厂商的.
+    USB host controller控制所有的usb设备的通信,通常计算机的cpu并不是直接和usb设备打交道，
+    而是和控制器打交道.
+USB device:hub&func
+    和usb控制器绑定在一起的hub就是系统中最根本的hub，其他hub可以连接到它这里，然后可以延伸出去,
+    外接别的设备.
+    USB连接指的就是连接device和host(或hub)的四线电缆.电缆中包括VBUS(电源线)、GND(地线)以及两根信号线.
+    USB系统通过VBUS和GND向设备提供电源.USB设备可以使用主机提供的电源也可以使用外接电源供电.
+USB协议
+    USB总线是一种轮寻方式的总线.协议规定所有的数据传输都必须由主机发起，host controller初始化所有的数据传输.
+    USB通信最基本的形式是通过USB设备里一个叫endpoint的东东，而主机和endpoint之间的数据传输是通过管道.
+    endpoint就是通信的发送或者接收点，你要发送数据，那你只要把数据发送到正确的endpoint就可以了.
+    endpoint是有方向的，从usb主机法哦设备称为out，从设备到主机称为in.
+    而管道实际上只是为了让我们能够找到endpoint，相当于我们日常说的邮编地址.
+    协议规定，所有的USB设备必须具有endpoint 0,它可以作为in也可以作为out,USB系统软件利用它来实现缺省的控制管道.
+    除了endpoint 0,低速设备最多只能拥有2个endpoint，告诉设备也最多只能拥有15in和15个out.这些endpoint在设备内部
+    都有唯一的endpoint标号，标号是在设备设计时就已经指定的.
+    管道通信方式有两种，一种是stream的，一种是message的.message管道必须对应两个相同标号的endpoint，一个用来in
+    一个用来out.
+    USB endpoint有四种类型，分别对应了四种不同的数据传输方式:
+        -   控制传输,Control Transfers          传送控制信息
+        -   中断传输,Interrupt Data Transfers   以一个固定的速率传送少量的数据，键盘、鼠标、触摸屏
+        -   批量传输,Bulk Data Transfers        传输大量的数据、确保没有数据丢失、并不保证在特定的时间内完成,U盘
+        -   等时传输,Isochronous Data Transfers 传输大量的数据，但不保证数据是否到达,以稳定的速率发送和接收实时信息
+
+USB实现
+            Function layer      Device layer            USB bus Interface layer
+    Host:   Client SW       --> USB System SW       --> USB Host Controller
+    Device: Function        <-- USB Logical Device  <-- USB Bus Interface
+Host Controller
+    看到的是一个个hub还有hub上的USB设备
+System SW
+    看到的hub以及各种设备都是逻辑上的usb设备
+Client SW
+    看到的是设备提供的功能
+真实的数据流只发生在Host Controller和设备的Bus Interface之间，其它的都是逻辑上的，即，虚的.
+各种USB设备提供的功能是不同的，但是面向主机的Bus Interface却是一致的.
+Compound device
+    将hub和连接在hub上的设备封装在一起所组成的设备
+Composite device
+    包含彼此独立的多个接口的设备
+从主机的角度看，一个Compound device，每个hub和各自的设备都有自己独立的地址，
+而Composite device不管有多少接口，都是一个地址.
+一个USB逻辑设备就是一群endpoint的集合，他们与主机之间的通信发生在主机上的一个缓冲区和设备上的一个endpoint之间，
+通过管道来传输数据.
+USB endpoint被捆绑为接口(Interface)一个接口代表一个基本功能，有的设备具有多个接口，例如USB扬声器，
+包含一个键盘接口和一个音频流接口.内核中一个接口要对应一个驱动程序，USB扬声器在linux里需要两个不同的驱动程序.
+一个设备可以包括多个接口，一个接口可以具有多个endpoint.
+
+drivers/usb/.
+            ├── atm
+            ├── c67x00
+            ├── chipidea
+            ├── class
+            ├── core        专门放一些核心的代码，如初始化整个usb系统，初始化root hub
+            ├── dwc3
+            ├── early
+            ├── gadget      配件,控制外围设备如何作为一个额USB设备和主机通信.(SD卡模拟U盘--usb gadget架构驱动)
+            |               嵌入式设备中,USB设备控制器常被集成到处理器中，设备的各种功能,如U盘、网卡等，
+            |               常依赖这种USB设备控制器来与主机连接，并且设备的各种功能之间可以切换.
+            ├── host        host controller的代码
+            ├── image
+            ├── Kconfig     Kconfig&Makefile是linux kernel迷宫里的地图
+            ├── Makefile
+            ├── misc
+            ├── mon
+            ├── musb
+            ├── otg
+            ├── phy
+            ├── renesas_usbhs
+            ├── serial
+            ├── storage     U盘驱动
+            └── wusbcore
+其他目录分们别类的存放了各种USB设备的驱动.Usb协议中，除了通用的软硬件电气接口规范等，还包含了各种各种的Class协议，
+用来为不同的功能定义各自的标准接口和具体的总线上的数据交互格式和内容.这些Class协议的数量很多，最常见的比如:
+支持U盘功能的Mass Storage Class,以及通用的数据交换协议: CDC class
+此外，还包括Audio Class,Print Class等等.
+理论上说，即使没有这些Class，通过专用驱动也能实现各种各样的应用功能.但是，正如Mass StorageClass的使用，使得各个
+厂商生产的U盘都能通过操作系统自带的统一的驱动程序来使用，对U盘的普及使用起了极大的推动作用.
+制定其它这些Class也是为了同样的目的.
+
+
+USB Core负责实现一些核心的功能，为别的设备驱动程序提供服务,提供一个用于访问和控制USB硬件的接口，而不用去考虑系统
+当前存在哪种host controller.
+    User    --> YFS/Block/Net/Char/TTY/..   --> USB Device Drivers  --> USB Core    --> USB Host Controller --> hardware
+HCD(Host Controller Driver)必须位于USB软件的最下一层.其上是USB Core Layer,再上面是各种USB设备驱动.
+HCD提供host controller硬件的抽象，隐藏了硬件的细节.
+USB Core将用户的请求映射到相关的HCD，用户不能直接访问HCD.
+写USB驱动的时候只能调用Core的接口,core为我们完成了大部分工作.
+
+
+USB设备分为HOST（主设备）和SLAVE（从设备），只有当一台HOST与一台SLAVE连接时才能实现数据的传输。
+简单的说，如果一个数码设备支持USB HOST，那么它就可以从另外一个USB设备中取得数据。
+OTG设备就是是我们的“EX”既能充当HOST，亦能充当SLAVE。
+
+
+
+===================================================================================================
+                   _   _ _ ___ _  
+                  | | | | | __/ \ 
+                  | |_| U | _| o | - The Lightweight USB
+                  |___|___|_||_n_|    Framework for AVRs
+===================================================================================================
+LUFA/Drivers/Peripheral/Serial.h
+    //Initializes the USART, ready for serial data transmission and reception.
+    static inline void Serial_Init(const uint32_t BaudRate,const bool DoubleSpeed);
+    static inline void Serial_TxByte(const char DataByte);
+LUFA/Drivers/USB/LowLevel/USBController.c
+    void USB_Init(...);
+LUFA/Drivers/USB/Class/Device/CDC.c (CDC --> 通用数据交换协议)
+    bool CDC_Device_ConfigureEndpoints(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo);
+    USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface = {
+        .Config = {
+            .ControlInterfaceNumber         = 0,                        //控制接口序号
+            .DataINEndpointNumber           = CDC_TX_EPNUM,             //3  -- endpoint序号(CDC interface's IN)
+            .DataINEndpointSize             = CDC_TXRX_EPSIZE,          //64 -- size in bytes(CDC interface's IN)
+            .DataINEndpointDoubleBank       = false,                    //双缓存(CDC interface's IN)
+            .DataOUTEndpointNumber          = CDC_RX_EPNUM,             //4  -- endpoint序号(CDC interface's OUT)
+            .DataOUTEndpointSize            = CDC_TXRX_EPSIZE,          //64 -- size in bytes(CDC interface's OUT)
+            .DataOUTEndpointDoubleBank      = false,                    //双缓存(CDC interface's OUT)
+            .NotificationEndpointNumber     = CDC_NOTIFICATION_EPNUM,   //2  -- endpoint序号(CDC interface's IN notification)
+            .NotificationEndpointSize       = CDC_NOTIFICATION_EPSIZE,  //8  -- size in bytes(CDC interface's IN notification)
+            .NotificationEndpointDoubleBank = false,                    //双缓存(CDC interface's IN notification)
+        },
+        .State{
+            .ControlLineStates{
+            },
+            .LineEncoding{
+            }
+        },
+    };
+LUFA/Drivers/USB/Class/Device/CDC.c
+    int16_t CDC_Device_ReceiveByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo);
+    uint8_t CDC_Device_SendByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo, const uint8_t Data);
+    void CDC_Device_USBTask(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo);
+LUFA/Drivers/USB/HighLevel/USBTask.c
+    void USB_USBTask(void);
+        -   USB_HostTask
+        -   USB_DeviceTask
+
+
+
+===================================================================================================
+USB --> UART
+===================================================================================================
+int main(void){
+	SetupHardware();
+
+	RingBuffer_InitBuffer(&USBtoUSART_Buffer);
+	RingBuffer_InitBuffer(&USARTtoUSB_Buffer);
+
+	sei();
+	for (;;){
+        //如果USB转USART的缓冲区还没满，那么从USB接口读一个数据放入缓冲区.
+		/* Only try to read in bytes from the CDC interface if the transmit buffer is not full */
+		if (!(RingBuffer_IsFull(&USBtoUSART_Buffer))){
+			int16_t ReceivedByte = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+			/* Read bytes from the USB OUT endpoint into the USART transmit buffer */
+			if (!(ReceivedByte < 0))
+			  RingBuffer_Insert(&USBtoUSART_Buffer, ReceivedByte);
+		}
+
+
+        //检查USART转USB的定时器以及缓冲区状态
+		/* Check if the UART receive buffer flush timer has expired or the buffer is nearly full */
+		RingBuff_Count_t BufferCount = RingBuffer_GetCount(&USARTtoUSB_Buffer);
+		if ((TIFR0 & (1 << TOV0)) || (BufferCount > BUFFER_NEARLY_FULL)) {
+			TIFR0 |= (1 << TOV0);
+
+			if (USARTtoUSB_Buffer.Count) {
+				LEDs_TurnOnLEDs(LEDMASK_TX);
+				PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
+			}
+
+			/* Read bytes from the USART receive buffer into the USB IN endpoint */
+			while (BufferCount--)
+			  CDC_Device_SendByte(&VirtualSerial_CDC_Interface, RingBuffer_Remove(&USARTtoUSB_Buffer));
+			  
+			/* Turn off TX LED(s) once the TX pulse period has elapsed */
+			if (PulseMSRemaining.TxLEDPulse && !(--PulseMSRemaining.TxLEDPulse))
+			  LEDs_TurnOffLEDs(LEDMASK_TX);
+
+			/* Turn off RX LED(s) once the RX pulse period has elapsed */
+			if (PulseMSRemaining.RxLEDPulse && !(--PulseMSRemaining.RxLEDPulse))
+			  LEDs_TurnOffLEDs(LEDMASK_RX);
+		}
+
+
+        //从USB接口接收到的数据发往USART
+		/* Load the next byte from the USART transmit buffer into the USART */
+		if (!(RingBuffer_IsEmpty(&USBtoUSART_Buffer))) {
+		  Serial_TxByte(RingBuffer_Remove(&USBtoUSART_Buffer));
+		  	LEDs_TurnOnLEDs(LEDMASK_RX);
+			PulseMSRemaining.RxLEDPulse = TX_RX_LED_PULSE_MS;
+		}
+
+        //调度USB程序
+		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
+		USB_USBTask();
+    }
+}
+//USART的接收中断负责填充USARTtoUSB_Buffer缓冲去
+ISR(USART1_RX_vect, ISR_BLOCK){
+	uint8_t ReceivedByte = UDR1;
+	if (USB_DeviceState == DEVICE_STATE_Configured)
+	  RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
+}
+
+
+===================================================================================================
+USB CDC Class驱动
+===================================================================================================
+# LUFA library compile-time options
+LUFA_OPTS  = -D USB_DEVICE_ONLY                 //仅作为从设备,no USB Host
+LUFA_OPTS += -D FIXED_CONTROL_ENDPOINT_SIZE=8
+LUFA_OPTS += -D FIXED_NUM_CONFIGURATIONS=1
+LUFA_OPTS += -D USE_FLASH_DESCRIPTORS
+LUFA_OPTS += -D INTERRUPT_CONTROL_ENDPOINT
+LUFA_OPTS += -D DEVICE_STATE_AS_GPIOR=0
+LUFA_OPTS += -D USE_STATIC_OPTIONS="(USB_DEVICE_OPT_FULLSPEED | USB_OPT_REG_ENABLED | USB_OPT_AUTO_PLL)"
+
+USB接口也是PC和MCU之间通讯，USB CDC只是让PC把设备视为串口，这样可以通过串口调试工具、Win32 API等来实现USB传输，比较方便。

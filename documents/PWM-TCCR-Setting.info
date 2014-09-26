@@ -1,0 +1,129 @@
+mighty_two
+===================================================================================================
+./src/MightyBoard/Motherboard/boards/mighty_two/Configuration.hh:298:#define STEPPER_TCCRnA         TCCR1A
+./src/MightyBoard/Motherboard/boards/mighty_two/Configuration.hh:299:#define STEPPER_TCCRnB         TCCR1B
+./src/MightyBoard/Motherboard/boards/mighty_two/Configuration.hh:300:#define STEPPER_TCCRnC         TCCR1C
+./src/MightyBoard/Motherboard/boards/mighty_two/ExtruderBoard.cc:73:        TCCR3A |= 0b10000000;
+./src/MightyBoard/Motherboard/boards/mighty_two/ExtruderBoard.cc:75:        TCCR3A &= 0b00111111;
+./src/MightyBoard/Motherboard/boards/mighty_two/ExtruderBoard.cc:82:        TCCR3A |= 0b00001000;
+./src/MightyBoard/Motherboard/boards/mighty_two/ExtruderBoard.cc:84:        TCCR3A &= 0b11110011;
+
+
+mighty_one
+===================================================================================================
+./src/MightyBoard/Motherboard/boards/mighty_one/Configuration.hh:315:#define STEPPER_TCCRnA         TCCR3A
+./src/MightyBoard/Motherboard/boards/mighty_one/Configuration.hh:316:#define STEPPER_TCCRnB         TCCR3B
+./src/MightyBoard/Motherboard/boards/mighty_one/Configuration.hh:317:#define STEPPER_TCCRnC         TCCR3C
+./src/MightyBoard/Motherboard/boards/mighty_one/ExtruderBoard.cc:74:        TCCR1A |= 0b10000000;
+./src/MightyBoard/Motherboard/boards/mighty_one/ExtruderBoard.cc:76:        TCCR1A &= 0b00111111;
+./src/MightyBoard/Motherboard/boards/mighty_one/ExtruderBoard.cc:83:        TCCR4A |= 0b10000000;
+./src/MightyBoard/Motherboard/boards/mighty_one/ExtruderBoard.cc:85:        TCCR4A &= 0b00111111;
+---------------------------------------------------------------------------------------------------
+void ExtruderHeatingElement::setHeatingElement(uint8_t value)
+// Turn on/off PWM for Extruder Two (OC1A)          // Turn on/off PWM for Extruder One (OC4A)
+OCR1A = value                                       OCR4A = value
+void pwmEx2_On(bool on) {                           void pwmEx1_On(bool on) {
+    if (on) {                                           if (on) {
+        TCCR1A |= 0b10000000;                               TCCR4A |= 0b10000000;
+    } else {                                            } else {                               
+        TCCR1A &= 0b00111111;                               TCCR4A &= 0b00111111;
+    }                                                   }   
+}                                                   }
+TCCRnA  7:6 选择通道A比较输出模式
+        5:4 选择通道B比较输出模式
+        3:2 选择通道C比较输出模式
+        1:0 波形产生模式WGMn[1:0]
+        用于挤出头加热控制
+
+
+common
+===================================================================================================
+./src/MightyBoard/Motherboard/StepperAccel.hh:45:#if  defined(DEBUG_TIMER) && defined(TCCR5A)
+./src/MightyBoard/Motherboard/StepperAccel.hh:46:   #define DEBUG_TIMER_START TCCR5A = 0x00;TCCR5B=0x01;TCNT5 = 0
+---------------------------------------------------------------------------------------------------
+#define DEBUG_TIMER_START TCCR5A = 0x00;TCCR5B=0x01;TCNT5 = 0
+#define DEBUG_TIMER_FINISH debugTimer = TCNT5                                                                                              
+#define DEBUG_TIMER_TCTIMER_CYCLES ((float)debugTimer)
+#define DEBUG_TIMER_TCTIMER_US ((float)debugTimer / 16.0)   //16 = cpu frequency / 1000000
+#define DEBUG_TIMER_TCTIMER_USI (debugTimer / 16)           //16 = cpu frequency / 1000000
+    定时器5时钟选择无预分频,频率为16Mhz.TCNT5每个CPU周期累加一次,即，单位为1/16us.
+
+
+./src/MightyBoard/Motherboard/Piezo.cc:101: TCCR4A = 0x00;
+./src/MightyBoard/Motherboard/Piezo.cc:102: TCCR4B = 0x00;
+./src/MightyBoard/Motherboard/Piezo.cc:103: TCCR4C = 0x00;
+./src/MightyBoard/Motherboard/Piezo.cc:109: TCCR0A = 0x00;
+./src/MightyBoard/Motherboard/Piezo.cc:110: TCCR0B = 0x00;
+---------------------------------------------------------------------------------------------------
+关闭硬件时钟.
+void shutdown_timer(void) {
+#ifdef MODEL_REPLICATOR2                #else
+    TCCR4A = 0x00;                          TCCR0A = 0x00;
+    TCCR4B = 0x00;                          TCCR0B = 0x00;
+    TCCR4C = 0x00;                          OCR0A  = 0x00;
+    OCR4A  = 0x00;                          OCR0B  = 0x00;
+    OCR4B  = 0x00;                          TCNT0  = 0x00;
+    TCNT4  = 0x00;                          TIMSK0 = 0x00;  //No interrupts
+    TIMSK4 = 0x00;  //No interrupts
+#endif                                                                                                                                         
+}
+
+
+//Toggle OC0B on compare match (i.e we're running at half the frequency of ORC0A,
+./src/MightyBoard/Motherboard/Piezo.cc:165:         TCCR4A = _BV(COM4A0);
+./src/MightyBoard/Motherboard/Piezo.cc:167:         TCCR4B = prescalerBits |            //Prescaler
+//Toggle OC0B on compare match (i.e we're running at half the frequency of ORC0A,
+./src/MightyBoard/Motherboard/Piezo.cc:201:         TCCR0A = _BV(COM0B0) |          
+./src/MightyBoard/Motherboard/Piezo.cc:205:         TCCR0B = prescalerBits;         //Prescaler
+---------------------------------------------------------------------------------------------------
+void processNextTone(void)
+    sets up timer to start playing
+    stops the timer if the buffer is empty
+
+
+./src/MightyBoard/Motherboard/Motherboard.cc:122:        STEPPER_TCCRnA = 0x00;
+./src/MightyBoard/Motherboard/Motherboard.cc:123:        STEPPER_TCCRnB = 0x0A;
+./src/MightyBoard/Motherboard/Motherboard.cc:124:        STEPPER_TCCRnC = 0x00;
+---------------------------------------------------------------------------------------------------
+void Motherboard::setupAccelStepperTimer() { 
+    STEPPER_TCCRnA = 0x00;                                                                                                               
+        B7:6,Channel A 比较输出模式
+        B5:4,Channel B 比较输出模式
+        B3:2,Channel C 比较输出模式
+        B1:0 --> WGM1:0
+    STEPPER_TCCRnB = 0x0A;
+        B7,输入捕获除噪
+        B6,输入捕获边缘选择
+        B5,Reserved
+        B4:3 --> WGM3:2
+        B2:0,时钟源选择与分频
+    STEPPER_TCCRnC = 0x00;
+        B7:5,强制输出比较通道A-B-C
+        B4:0,Reserved
+    STEPPER_OCRnA  = 0x2000;
+        输出比较寄存器A,如果值为2000,那么比较匹配的频率为1Khz,如果值为0x2000,那么频率为2Mhz/0x2000
+    STEPPER_TIMSKn = 0x02; 
+        B5,使能输入捕获中断
+        B3:1,使能C-B-A输出比较匹配中断
+        B0,使能溢出中断
+    总结:
+        WGM3:0 = 0100,CTC模式,TOP = OCRnA
+        CS2:0  = 010,8分频,即16Mhz/8 = 2Mhz
+        OCR3A引脚产生一个固定周期为(1Khz?)的中断信号.
+        中断处理函数如下:(步进电机移动 -- 控制X,Y,Z三个轴的运动以及两个打印头挤出机的转动)
+        ISR(STEPPER_TIMERn_COMPA_vect) {
+                Motherboard::getBoard().doStepperInterrupt();
+        }
+}
+./src/MightyBoard/Motherboard/Motherboard.cc:178:   TCCR2A = 0x02;  // CTC
+./src/MightyBoard/Motherboard/Motherboard.cc:179:   TCCR2B = 0x04;  // prescaler at 1/64
+./src/MightyBoard/Motherboard/Motherboard.cc:200:   TCCR3A = 0b00000001;
+./src/MightyBoard/Motherboard/Motherboard.cc:201:   TCCR3B = 0b00001011; /// set to PWM mode
+./src/MightyBoard/Motherboard/Motherboard.cc:211:   TCCR1A = 0b00000001;
+./src/MightyBoard/Motherboard/Motherboard.cc:212:   TCCR1B = 0b00001011;
+./src/MightyBoard/Motherboard/Motherboard.cc:222:   TCCR4A = 0b00000001;
+./src/MightyBoard/Motherboard/Motherboard.cc:223:   TCCR4B = 0b00001011;
+./src/MightyBoard/Motherboard/Motherboard.cc:224:   TCCR4C = 0x00;
+./src/MightyBoard/Motherboard/Motherboard.cc:246:   TCCR5A = 0x00; // WGM51:WGM50 00
+./src/MightyBoard/Motherboard/Motherboard.cc:247:   TCCR5B = 0x0B; // WGM53:WGM52 10 (CTC) CS52:CS50 011 (/64) => CTC, 250 KHz
+./src/MightyBoard/Motherboard/Motherboard.cc:248:   TCCR5C = 0x00;

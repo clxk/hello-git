@@ -1,0 +1,790 @@
+***************************************************************************************************
+query packets (non action, not queued)
+***************************************************************************************************
+typedef enum {
+    RC_PACKET_ERROR         = 0x80,
+    RC_OK                   = 0x81,
+    RC_BUFFER_OVERFLOW      = 0x82,
+    RC_CRC_MISMATCH         = 0x83,
+    RC_PACKET_LENGTH        = 0x84,
+    RC_CMD_UNSUPPORTED      = 0x85,
+    RC_EXPECT_MORE          = 0x86,
+    RC_DOWNSTREAM_TIMEOUT   = 0x87,
+    RC_TOOL_LOCK_TIMEOUT    = 0x88,
+    RC_CANCEL_BUILD         = 0x89,
+    RC_BOT_BUILDING         = 0x8A,
+    RC_BOT_OVERHEAT         = 0x8B,
+    RC_PACKET_TIMEOUT       = 0x8C
+} ResponseCode;
+===================================================================================================
+from_host   : 0xD5 | len | data | crc |
+to_host     : 0xD5 | len | data | crc |
+===================================================================================================
+#define HOST_CMD_VERSION         0              //查询固件版本号
+from_host   : cmd(1)                            //host 向 firmware发送一个字节的cmd = 0命令进行版本号的查询操作
+to_host     : RC_OK(1) | Version(2)             //firmware 返回格式,以7.05版本为例,version = 7*100+05 = 705,unsigned short类型.
+
+#define HOST_CMD_INIT            1              //初始化操作，固件实际上不作任何实际操作
+from_host   : cmd(1)
+to_host     : RC_OK(1)
+
+#define HOST_CMD_GET_BUFFER_SIZE 2              //获取命令缓冲区的剩余空间，最大值为#define COMMAND_BUFFER_SIZE 512
+from_host   : cmd(1)
+to_host     : RC_OK(1) | RemainingCapacity(4)
+
+#define HOST_CMD_CLEAR_BUFFER    3              //当前这三条命令的效果是一样的
+#define HOST_CMD_RESET           17
+#define HOST_CMD_ABORT           7
+from_host   : cmd(1)
+to_host     : RC_OK(1)
+
+#define HOST_CMD_GET_POSITION    4              //获取(x,y,z)坐标位置以及限位开关的状态信息(按bit取值)
+from_host   : cmd(1)
+to_host     : RC_OK(1) | x(4) | y(4) | z(4) | status(1)-xXyYzZ
+
+#define HOST_CMD_PAUSE           8
+from_host   : cmd(1)
+to_host     : RC_OK(1)
+
+#define HOST_CMD_PROBE           9              //NA
+from_host   : cmd(1)
+to_host     : NA
+
+#define HOST_CMD_TOOL_QUERY     10
+from_host   : cmd(1) | id(1) | subcmd(1)
+            #define SLAVE_CMD_VERSION                0      //查询固件版本号
+to_host     : RC_OK(1) | Version(2)
+            #define SLAVE_CMD_GET_TEMP               2      //获取指定打印头的温度
+to_host     : RC_OK(1) | Temperature(2)
+            #define SLAVE_CMD_IS_TOOL_READY         22      //查询指定打印头是否达到设定的目标温度
+to_host     : RC_OK(1) | ReachTargetTemperature(1)
+            #define SLAVE_CMD_GET_PLATFORM_TEMP     30      //查询加热平台的温度
+to_host     : RC_OK(1) | PlatformTemperature(2)
+            #define SLAVE_CMD_GET_SP                32      //查询指定打印头设定的目标温度
+to_host     : RC_OK(1) | SetTemperature(2)
+            #define SLAVE_CMD_GET_PLATFORM_SP       33      //查询打印平台设定的目标温度
+to_host     : RC_OK(1) | PlatformSetTemperature(2)
+            #define SLAVE_CMD_IS_PLATFORM_READY     35      //查询打印平台是否达到设定温度
+to_host     : RC_OK(1) | ReachTargetTemperature(1)
+            #define SLAVE_CMD_GET_TOOL_STATUS       36
+            enum HeaterFailMode{
+                HEATER_FAIL_NONE            = 0,
+                HEATER_FAIL_NOT_PLUGGED_IN  = 0x02,         //Bit:1
+                HEATER_FAIL_SOFTWARE_CUTOFF = 0x04,         //Bit:2
+                HEATER_FAIL_NOT_HEATING     = 0x08,         //Bit:3
+                HEATER_FAIL_DROPPING_TEMP   = 0x10,         //Bit:4
+                HEATER_FAIL_BAD_READS       = 0x20          //Bit:5
+            };
+to_host     : RC_OK(1) | status(1)                          //Bit:7指定打印头状态 Bit:6加热板状态 Bit:0指定打印头是否达到设定温度
+            #define SLAVE_CMD_GET_PID_STATE         37      //获取指定打印头以及加热板的PID调节信息
+to_host     : RC_OK(1) | PIDErrorTerm(2) | PIDDeltaTerm(2) | PIDLastOutput(2) | P-PIDErrorTerm(2) | P-PIDDeltaTerm(2) | P-PIDLastOutput(2)
+
+#define HOST_CMD_IS_FINISHED    11              //查询步进电机是否在工作中(执行某个命令) 
+from_host   : cmd(1)
+to_host     : RC_OK(1) | done(1)
+
+#define HOST_CMD_READ_EEPROM    12              //读取eeprom中的数据
+from_host   : cmd(1) | offset(2) | length(1)
+to_host     : RC_OK(1) | data(length)
+
+#define HOST_CMD_WRITE_EEPROM   13              //向eeprom中写入数据
+from_host   : cmd(1) | offset(2) | length(1) | data(length)
+to_host     : RC_OK(1) | length(1)
+
+#define HOST_CMD_EXTENDED_STOP     22           //停止步进电机以及命令的执行
+from_host   : cmd(1) | flag(1)                  //Bit:0 停止步进电机 Bit:1 清空队列
+to_host     : RC_OK(1) | 0(1)
+
+#define HOST_CMD_BOARD_STATUS	   23           //查询当前固件的工作状态
+from_host   : cmd(1)
+to_host     : RC_OK(1) | status
+            enum status_states{
+                STATUS_NONE                     = 0,
+                STATUS_HEAT_INACTIVE_SHUTDOWN   = 0x40,
+                STATUS_CANCELLING               = 0x20,
+                STATUS_WAITING_FOR_BUTTON       = 0x10,
+                STATUS_ONBOARD_PROCESS          = 0x08,
+                STATUS_ONBOARD_SCRIPT           = 0x04,
+                STATUS_MANUAL_MODE              = 0x02,
+                STATUS_PREHEATING               = 0x01
+            };
+#define HOST_CMD_GET_BUILD_STATS   24           //查询当前的打印信息
+from_host   : cmd(1)
+to_host     : RC_OK(1) | buildState(1) | hours(1) | minutes(1) | lineNumber(4) | 0(4)
+            enum BuildState {
+                BUILD_NONE              = 0,
+                BUILD_RUNNING           = 1,
+                BUILD_FINISHED_NORMALLY = 2,
+                BUILD_PAUSED            = 3,
+                BUILD_CANCELED          = 4,
+                BUILD_CANCELLING        = 5,
+            };
+#define HOST_CMD_ADVANCED_VERSION  27           //查询固件版本等...
+from_host   : cmd(1)
+to_host     : RC_OK(1) | Version(2) | 0(2) | 0x80(1) | 0(1) | 0(2)
+
+
+
+***************************************************************************************************
+debug packets
+***************************************************************************************************
+namespace CommandCode {
+    enum {
+        DEBUG_ECHO                  = 0x70,
+        DEBUG_GENERATE_BAD_PACKET   = 0x71,
+        DEBUG_SIMULATE_BAD_PACKET   = 0x72,
+        DEBUG_SLAVE_PASSTHRU        = 0x73,
+        DEBUG_CLEAR_COMMAND_QUEUE   = 0x74,
+        DEBUG_NO_SUCH_COMMAND       = 0x75,
+        DEBUG_SET_DEBUG_CODE        = 0x76,
+        DEBUG_GET_DEBUG_CODE        = 0x77,
+        DEBUG_COMMAND_QUEUE_FILLER  = 0xF0
+    };
+}
+CommandCode::DEBUG_ECHO                         //回显,除此之外，其它的'debug packet'无需过多关注
+from_host   : cmd(1) | data
+to_host     : data
+
+
+
+***************************************************************************************************
+command packets
+***************************************************************************************************
+from_host   : 从x3g文件中读取一条命令，组成串口帧传输格式，发送给固件
+to_host     : 如果command buffer空间充足，则把接收到的数据放入缓冲区，并返回RC_OK,否则返回RC_BUFFER_OVERFLOW
+
+
+
+
+***************************************************************************************************
+串口帧中crc值的计算公式
+***************************************************************************************************
+unsigned char _crc_ibutton_update(unsigned char  crc, unsigned char data){
+    unsigned char i;
+
+    crc = crc ^ data;
+    for (i = 0; i < 8; i++){
+        if (crc & 0x01)
+            crc = (crc >> 1) ^ 0x8C;
+        else
+            crc >>= 1;
+    }   
+    return crc;
+}
+
+===================================================================================================
+固件程序在接收上位机指令时可能上报的返回码.
+===================================================================================================
+typedef enum {
+    RC_PACKET_ERROR         = 0x80,
+    RC_OK                   = 0x81,
+    RC_BUFFER_OVERFLOW      = 0x82,
+    RC_CRC_MISMATCH         = 0x83,
+    RC_PACKET_LENGTH        = 0x84,
+    RC_CMD_UNSUPPORTED      = 0x85,
+    RC_EXPECT_MORE          = 0x86,
+    RC_DOWNSTREAM_TIMEOUT   = 0x87,
+    RC_TOOL_LOCK_TIMEOUT    = 0x88,
+    RC_CANCEL_BUILD         = 0x89,
+    RC_BOT_BUILDING         = 0x8A,
+    RC_BOT_OVERHEAT         = 0x8B,
+    RC_PACKET_TIMEOUT       = 0x8C
+} ResponseCode;
+===================================================================================================
+调试命令集合
+===================================================================================================
+enum {
+	DEBUG_ECHO                  = 0x70,
+	DEBUG_GENERATE_BAD_PACKET   = 0x71,
+	DEBUG_SIMULATE_BAD_PACKET   = 0x72,
+	DEBUG_SLAVE_PASSTHRU        = 0x73,
+	DEBUG_CLEAR_COMMAND_QUEUE   = 0x74,
+	DEBUG_NO_SUCH_COMMAND       = 0x75,
+	DEBUG_SET_DEBUG_CODE        = 0x76,
+	DEBUG_GET_DEBUG_CODE        = 0x77,
+	DEBUG_COMMAND_QUEUE_FILLER  = 0xF0
+};
+===================================================================================================
+来自Host端的可缓冲的命令集合(打印命令)
+===================================================================================================
+#define HOST_CMD_FIND_AXES_MINIMUM          131
+#define HOST_CMD_FIND_AXES_MAXIMUM          132
+#define HOST_CMD_DELAY                      133
+#define HOST_CMD_CHANGE_TOOL                134
+#define HOST_CMD_WAIT_FOR_TOOL              135
+#define HOST_CMD_TOOL_COMMAND               136
+#define HOST_CMD_ENABLE_AXES                137
+#define HOST_CMD_WAIT_FOR_PLATFORM          141
+#define HOST_CMD_QUEUE_POINT_EXT            139
+#define HOST_CMD_SET_POSITION_EXT           140
+#define HOST_CMD_QUEUE_POINT_NEW            142
+#define HOST_CMD_STORE_HOME_POSITION        143
+#define HOST_CMD_RECALL_HOME_POSITION       144
+#define HOST_CMD_SET_POT_VALUE              145
+#define HOST_CMD_SET_RGB_LED                146
+#define HOST_CMD_SET_BEEP                   147
+#define HOST_CMD_PAUSE_FOR_BUTTON	        148
+#define HOST_CMD_DISPLAY_MESSAGE	        149
+#define HOST_CMD_SET_BUILD_PERCENT	        150
+#define HOST_CMD_QUEUE_SONG			        151 /* queue a song to sing, by song ID */
+#define HOST_CMD_RESET_TO_FACTORY 	        152 /* Reset to factory defaults */
+#define HOST_CMD_BUILD_START_NOTIFICATION   153
+#define HOST_CMD_BUILD_END_NOTIFICATION     154
+#define HOST_CMD_QUEUE_POINT_NEW_EXT        155
+#define HOST_CMD_SET_ACCELERATION_TOGGLE	156
+#define HOST_CMD_STREAM_VERSION		        157
+#define HOST_CMD_PAUSE_AT_ZPOS		        158
+===================================================================================================
+来自Host端的查询类的命令集合
+===================================================================================================
+#define HOST_CMD_VERSION                    0
+#define HOST_CMD_INIT                       1
+#define HOST_CMD_GET_BUFFER_SIZE            2
+#define HOST_CMD_CLEAR_BUFFER               3
+#define HOST_CMD_GET_POSITION               4
+#define HOST_CMD_ABORT                      7
+#define HOST_CMD_PAUSE                      8
+#define HOST_CMD_PROBE                      9
+#define HOST_CMD_TOOL_QUERY                 10
+#define HOST_CMD_IS_FINISHED                11
+#define HOST_CMD_READ_EEPROM                12
+#define HOST_CMD_WRITE_EEPROM               13
+#define HOST_CMD_CAPTURE_TO_FILE            14
+#define HOST_CMD_END_CAPTURE                15
+#define HOST_CMD_PLAYBACK_CAPTURE           16
+#define HOST_CMD_RESET                      17
+#define HOST_CMD_NEXT_FILENAME              18
+#define HOST_CMD_GET_DBG_REG                19
+#define HOST_CMD_GET_BUILD_NAME             20
+#define HOST_CMD_GET_POSITION_EXT           21
+#define HOST_CMD_EXTENDED_STOP              22
+#define HOST_CMD_BOARD_STATUS	            23
+#define HOST_CMD_GET_BUILD_STATS            24
+#define HOST_CMD_ADVANCED_VERSION           27
+===================================================================================================
+x3g文件 = 命令+参数集合 = 如下格式(注意不包含*cmd_name项)
+具体命令参数的解释参考s3g.h文件(s3g.h文件内容附在本文最后)
+===================================================================================================
+typedef struct {
+     uint8_t     cmd_id;
+     size_t      cmd_len;
+     const char *cmd_name;
+     union {
+	  s3g_queue_point_abs          queue_point_abs;
+	  s3g_queue_point_ext          queue_point_ext;
+	  s3g_queue_point_new          queue_point_new;
+	  s3g_queue_point_new_ext      queue_point_new_ext;
+	  s3g_change_tool              change_tool;
+	  s3g_enable_axes              enable_axes;
+	  s3g_set_position             set_position;
+	  s3g_set_position_ext         set_position_ext;
+	  s3g_delay                    delay;
+	  s3g_find_axes_minimum        find_axes_minimum;
+	  s3g_find_axes_maximum        find_axes_maximum;
+	  s3g_wait_for_tool            wait_for_tool;
+	  s3g_wait_for_platform        wait_for_platform;
+	  s3g_store_home_position      store_home_position;
+	  s3g_recall_home_position     recall_home_position;
+	  s3g_tool                     tool;
+	  s3g_set_max_accel            set_max_accel;
+	  s3g_set_max_feedrate         set_max_feedrate;
+	  s3g_set_default_accel        set_default_accel;
+	  s3g_set_advanced_accel       set_advanced_accel;
+	  s3g_set_filament_diameter    set_filament_diameter;
+	  s3g_set_advance_k            set_advance_k;
+	  s3g_set_extruder_stepsmm     set_extruder_stepsmm;
+	  s3g_set_segment_acceleration set_segment_acceleration;
+	  s3g_mood_set_rgb             mood_set_rgb;
+	  s3g_mood_set_hsb             mood_set_hsb;
+	  s3g_mood_play_script         mood_play_script;
+	  s3g_buzzer_repeats           buzzer_repeats;
+	  s3g_buzzer_buzz              buzzer_buzz;
+	  s3g_set_axis_steps_mm        set_axis_steps_mm;
+	  s3g_set_pot_value            digi_pot;
+	  s3g_set_rgb_led              rgb_led;
+	  s3g_set_beep                 beep;
+	  s3g_pause_for_button         button_pause;
+	  s3g_display_message          display_message;
+	  s3g_set_build_percent        build_percentage;
+	  s3g_queue_song               queue_song;
+	  s3g_reset_to_factory         factory_reset;
+	  s3g_build_start_notification build_start;
+	  s3g_build_end_notification   build_end;
+	  s3g_stream_version           x3g_version;
+     } t;
+} s3g_command_t;
+static const s3g_command_info_t command_table_raw[] = {
+     /*   0 */  {HOST_CMD_VERSION, 0, "version"},
+     /*   1 */  {HOST_CMD_INIT, 0, "initialize"},
+     /*   2 */  {HOST_CMD_GET_BUFFER_SIZE, 0, "get buffer size"},
+     /*   3 */  {HOST_CMD_CLEAR_BUFFER, 0, "clear buffer"},
+     /*   4 */  {HOST_CMD_GET_POSITION, 0, "get position"},
+     /*   7 */  {HOST_CMD_ABORT, 0, "abort"},
+     /*   8 */  {HOST_CMD_PAUSE, 0, "pause"},
+     /*   9 */  {HOST_CMD_PROBE, 0, "probe"},
+     /*  10 */  {HOST_CMD_TOOL_QUERY, 0, "tool query"},
+     /*  11 */  {HOST_CMD_IS_FINISHED, 0, "is finished?"},
+     /*  12 */  {HOST_CMD_READ_EEPROM, 0, "read EEPROM"},
+     /*  13 */  {HOST_CMD_WRITE_EEPROM, 0, "write EEPROM"},
+     /*  14 */  {HOST_CMD_CAPTURE_TO_FILE, 0, "capture to file"},
+     /*  15 */  {HOST_CMD_END_CAPTURE, 0, "end capture"},
+     /*  16 */  {HOST_CMD_PLAYBACK_CAPTURE, 0, "playback capture"},
+     /*  17 */  {HOST_CMD_RESET, 0, "sortware reset"},
+     /*  18 */  {HOST_CMD_NEXT_FILENAME, 0, "next SD card filename"},
+     /*  19 */  {HOST_CMD_GET_DBG_REG, 0, "get debug register"},
+     /*  20 */  {HOST_CMD_GET_BUILD_NAME, 0, "get build name"},
+     /*  21 */  {HOST_CMD_GET_POSITION_EXT, 0, "get position extended"},
+     /*  22 */  {HOST_CMD_EXTENDED_STOP, 0, "extended stop"},
+     /*  23 */  {HOST_CMD_BOARD_STATUS, 0, "get board status"},
+     /*  24 */  {HOST_CMD_GET_BUILD_STATS, 0, "get build statistics"},
+     /*  27 */  {HOST_CMD_ADVANCED_VERSION, 0, "advanced version"},
+     /* 112 */  {HOST_CMD_DEBUG_ECHO, 0, "debug echo"},
+     /* 131 */  {HOST_CMD_FIND_AXES_MINIMUM, 7, "find axes minimum"},
+     /* 132 */  {HOST_CMD_FIND_AXES_MAXIMUM, 7, "find axes maximum"},
+     /* 133 */  {HOST_CMD_DELAY, 4, "delay"},
+     /* 134 */  {HOST_CMD_CHANGE_TOOL, 1, "change tool"},
+     /* 135 */  {HOST_CMD_WAIT_FOR_TOOL, 5, "wait for tool ready"},
+     /* 136 */  {HOST_CMD_TOOL_COMMAND, 0xffffffff, "tool action"},
+     /* 137 */  {HOST_CMD_ENABLE_AXES, 1, "enable/disable axes"},
+     /* 138 */  {138, 2, "user block"},
+     /* 139 */  {HOST_CMD_QUEUE_POINT_EXT, 24, "queue point extended"},
+     /* 140 */  {HOST_CMD_SET_POSITION_EXT, 20, "set position extended"},
+     /* 141 */  {HOST_CMD_WAIT_FOR_PLATFORM, 5, "wait for platform ready"},
+     /* 142 */  {HOST_CMD_QUEUE_POINT_NEW, 25, "queue new point"},
+     /* 143 */  {HOST_CMD_STORE_HOME_POSITION, 1, "store home position"},
+     /* 144 */  {HOST_CMD_RECALL_HOME_POSITION, 1, "recall home position"},
+     /* 145 */  {HOST_CMD_SET_POT_VALUE, 2, "digital potentiometer"},
+     /* 146 */  {HOST_CMD_SET_RGB_LED, 5, "RGB LED"},
+     /* 147 */  {HOST_CMD_SET_BEEP, 5, "buzzer beep"},
+     /* 148 */  {HOST_CMD_PAUSE_FOR_BUTTON, 4, "pause for button"},
+     /* 149 */  {HOST_CMD_DISPLAY_MESSAGE, -1, "display message"},
+     /* 150 */  {HOST_CMD_SET_BUILD_PERCENT, 2, "build percentage"},
+     /* 151 */  {HOST_CMD_QUEUE_SONG, 1, "queue song"},
+     /* 152 */  {HOST_CMD_RESET_TO_FACTORY, 1, "restore to factory settings"},
+     /* 153 */  {HOST_CMD_BUILD_START_NOTIFICATION, 4, "build start notification"},
+     /* 154 */  {HOST_CMD_BUILD_END_NOTIFICATION, 1, "build end notification"},
+     /* 155 */  {HOST_CMD_QUEUE_POINT_NEW_EXT, 31, "queue point new extended"},
+     /* 156 */  {HOST_CMD_SET_ACCELERATION_TOGGLE, 1, "set segment acceleration"},
+     /* 157 */  {HOST_CMD_STREAM_VERSION, 20, "stream version"}
+};
+===================================================================================================
+串口帧格式  |0xD5|len|..data..|crc|
+            起始位:     0xD5
+            长度:       最大128或者64由配置决定,这里为所传输的串口帧中有效数据长度
+            数据:       有效数据
+            校验位:     一个字节的校验和
+===================================================================================================
+s3g.h
+===================================================================================================
+// s3g.h
+// Structure and routine definitions for the s3g library
+
+#ifndef S3G_H_
+
+#define S3G_H_
+
+#include <inttypes.h>
+#include "Commands.hh"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef S3G_CONTEXT_T_
+#define S3G_CONTEXT_T_
+typedef void s3g_context_t;
+#endif
+
+// s3g_queue_point_abs, s3g_queue_point_ext, and s3g_queue_point_new
+// all have the same size, packing and layout.  They can be cast to
+// one another and the relevant fields extracted.  The dummy_ fields
+// will be set to zero when appropriate.
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t dummy_a;
+     int32_t dummy_b;
+     int32_t dda;
+     uint8_t dummy_rel;
+} s3g_queue_point_abs;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t a;
+     int32_t b;
+     int32_t dda;
+     uint8_t dummy_rel;
+} s3g_queue_point_ext;
+
+typedef struct {
+     int32_t  x;
+     int32_t  y;
+     int32_t  z;
+     int32_t  a;
+     int32_t  b;
+     int32_t  dda_rate;
+     uint8_t  rel;
+     float    distance;
+     uint16_t feedrate_mult_64;
+} s3g_queue_point_new_ext;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t a;
+     int32_t b;
+     int32_t us;
+     uint8_t rel;
+} s3g_queue_point_new;
+
+typedef struct {
+     uint8_t index;
+} s3g_change_tool;
+
+typedef struct {
+     uint8_t axes;
+} s3g_enable_axes;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+} s3g_set_position;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t a;
+     int32_t b;
+} s3g_set_position_ext;
+
+typedef struct {
+     uint32_t millis;
+} s3g_delay;
+
+typedef struct {
+     uint8_t  flags;
+     uint32_t feedrate; // microseconds per step
+     uint16_t timeout;   // seconds
+} s3g_find_axes_minimum;
+
+typedef struct {
+     uint8_t  flags;
+     uint32_t feedrate; // microseconds per step
+     uint16_t timeout;   // seconds
+} s3g_find_axes_maximum;
+
+typedef struct {
+     uint8_t  index;
+     uint16_t ping_delay;
+     uint16_t timeout;
+} s3g_wait_for_tool;
+
+typedef struct {
+     uint8_t  index;
+     uint16_t ping_delay;
+     uint16_t timeout;
+} s3g_wait_for_platform;
+
+typedef struct {
+     uint8_t axes;
+} s3g_store_home_position;
+
+typedef struct {
+     uint8_t axes;
+} s3g_recall_home_position;
+
+typedef struct {
+     uint8_t     index;
+     uint8_t     subcmd_id;
+     size_t      subcmd_len;
+     const char *subcmd_name;
+     uint16_t    subcmd_value;
+} s3g_tool;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t a;
+} s3g_set_max_accel;
+
+typedef struct {
+     int32_t x;
+     int32_t y;
+     int32_t z;
+     int32_t a;
+} s3g_set_max_feedrate;
+
+typedef struct {
+     int32_t s;
+     int32_t t;
+} s3g_set_default_accel;
+
+typedef struct {
+     int32_t s;
+     int32_t t;
+     int32_t x;
+     int32_t z;
+} s3g_set_advanced_accel;
+
+typedef struct {
+     int32_t d;
+} s3g_set_filament_diameter;
+
+typedef struct {
+     int32_t s;
+     int32_t k;
+} s3g_set_advance_k;
+
+typedef struct {
+     int32_t a;
+} s3g_set_extruder_stepsmm;
+
+typedef struct {
+     uint8_t s;
+} s3g_set_segment_acceleration;
+
+typedef struct {
+     int32_t r;
+     int32_t g;
+     int32_t b;
+     int32_t fade_speed;
+     int32_t write_to_eeprom;
+} s3g_mood_set_rgb;
+
+typedef struct {
+     int32_t h;
+     int32_t s;
+     int32_t b;
+     int32_t write_to_eeprom;
+} s3g_mood_set_hsb;
+
+typedef struct {
+     int32_t script_id;
+     int32_t write_to_eeprom;
+} s3g_mood_play_script;
+
+typedef struct {
+     uint8_t repeats;
+} s3g_buzzer_repeats;
+
+typedef struct {
+     uint8_t buzzes;
+     uint8_t duration;
+     uint8_t repeats;
+} s3g_buzzer_buzz;
+
+typedef struct {
+     int64_t x; // int32_t * 10000
+     int64_t y; // int32_t * 10000
+     int64_t z; // int32_t * 10000
+     int64_t a; // int32_t * 10000
+} s3g_set_axis_steps_mm;
+
+typedef struct {
+     uint8_t axis;
+     uint8_t value;
+} s3g_set_pot_value;
+
+typedef struct {
+     uint8_t red;
+     uint8_t green;
+     uint8_t blue;
+     uint8_t blink_rate;
+     uint8_t effect;
+} s3g_set_rgb_led;
+
+typedef struct {
+     uint16_t frequency;
+     uint16_t duration;
+     uint8_t effect;
+} s3g_set_beep;
+
+typedef struct {
+     uint8_t  mask;
+     uint16_t timeout;
+     uint8_t  timeout_behavior;
+} s3g_pause_for_button;
+
+typedef struct {
+     uint8_t       options;
+     uint8_t       x;
+     uint8_t       y;
+     uint8_t       timeout;
+     uint8_t       message_len;
+     unsigned char message[64];
+} s3g_display_message;
+
+typedef struct {
+     uint8_t percentage;
+     uint8_t reserved;
+} s3g_set_build_percent;
+
+typedef struct {
+     uint8_t song_id;
+} s3g_queue_song;
+
+typedef struct {
+     uint8_t options;
+} s3g_reset_to_factory;
+
+typedef struct {
+     uint32_t      steps;
+     uint8_t       message_len;
+     unsigned char message[64];
+} s3g_build_start_notification;
+
+typedef struct {
+     uint8_t flags;
+} s3g_build_end_notification;
+
+typedef struct {
+    uint8_t  version_high;
+    uint8_t  version_low;
+    uint8_t  reserved1;
+    uint32_t reserved2;
+    uint16_t bot_type;
+    uint16_t reserved3;
+    uint32_t reserved4;
+    uint32_t reserved5;
+    uint8_t  reserved6;
+} s3g_stream_version;
+
+// s3g_command_t
+// An individual command read from a .s3g file is stored in
+// this data structure.  You need to know from the command id
+// which member of the union to look at.
+
+// #define constants from the command ids are available in Commands.hh
+
+typedef struct {
+     uint8_t     cmd_id;
+     size_t      cmd_len;
+     const char *cmd_name;
+     union {
+	  s3g_queue_point_abs          queue_point_abs;
+	  s3g_queue_point_ext          queue_point_ext;
+	  s3g_queue_point_new          queue_point_new;
+	  s3g_queue_point_new_ext      queue_point_new_ext;
+	  s3g_change_tool              change_tool;
+	  s3g_enable_axes              enable_axes;
+	  s3g_set_position             set_position;
+	  s3g_set_position_ext         set_position_ext;
+	  s3g_delay                    delay;
+	  s3g_find_axes_minimum        find_axes_minimum;
+	  s3g_find_axes_maximum        find_axes_maximum;
+	  s3g_wait_for_tool            wait_for_tool;
+	  s3g_wait_for_platform        wait_for_platform;
+	  s3g_store_home_position      store_home_position;
+	  s3g_recall_home_position     recall_home_position;
+	  s3g_tool                     tool;
+	  s3g_set_max_accel            set_max_accel;
+	  s3g_set_max_feedrate         set_max_feedrate;
+	  s3g_set_default_accel        set_default_accel;
+	  s3g_set_advanced_accel       set_advanced_accel;
+	  s3g_set_filament_diameter    set_filament_diameter;
+	  s3g_set_advance_k            set_advance_k;
+	  s3g_set_extruder_stepsmm     set_extruder_stepsmm;
+	  s3g_set_segment_acceleration set_segment_acceleration;
+	  s3g_mood_set_rgb             mood_set_rgb;
+	  s3g_mood_set_hsb             mood_set_hsb;
+	  s3g_mood_play_script         mood_play_script;
+	  s3g_buzzer_repeats           buzzer_repeats;
+	  s3g_buzzer_buzz              buzzer_buzz;
+	  s3g_set_axis_steps_mm        set_axis_steps_mm;
+	  s3g_set_pot_value            digi_pot;
+	  s3g_set_rgb_led              rgb_led;
+	  s3g_set_beep                 beep;
+	  s3g_pause_for_button         button_pause;
+	  s3g_display_message          display_message;
+	  s3g_set_build_percent        build_percentage;
+	  s3g_queue_song               queue_song;
+	  s3g_reset_to_factory         factory_reset;
+	  s3g_build_start_notification build_start;
+	  s3g_build_end_notification   build_end;
+	  s3g_stream_version           x3g_version;
+     } t;
+} s3g_command_t;
+
+#define S3G_INPUT_TYPE_FILE 0  // stdin or a named disk file
+
+// Obtain an s3g_context for an input source of type S3G_INPUT_TYPE_.
+// The context returned must be disposed of by calling s3g_close().
+//
+// Call arguments:
+//
+//   int type
+//      Input source type.  Must be one of
+//
+//         S3G_INPUT_TYPE_FILE
+//
+//   void *src
+//      Input source information for the selected input type
+//
+//         S3G_INPUT_TYPE_FILE -- const char *filename or NULL for stdin
+//
+//   Return values:
+//
+//     != NULL -- Success
+//     == NULL -- Error; consult errno
+
+s3g_context_t *s3g_open(int type, void *src);
+
+
+// Read a single command from the s3g context, storing the result in the
+// supplied s3g_command_t structure
+//
+// Call arguments:
+//
+//   s3g_context_t *ctx
+//     Context obtained by calling s3g_open().
+//
+//   s3g_command_t *cmd
+//     Pointer to a s3g_command_t structure to store the read command in.  If NULL
+//     is passed for this argument, then the command is read but no information about
+//     the command is returned.
+//
+//  Return values:
+//
+//    0 -- Success
+//    1 -- Unrecognized command encountered; not possible to read further
+//   -1 -- Read error; check errno
+
+int s3g_command_read(s3g_context_t *ctx, s3g_command_t *cmd);
+
+int s3g_command_read_ext(s3g_context_t *ctx, s3g_command_t *cmd,
+			 unsigned char *rawbuf, size_t maxbuf, size_t *len);
+
+
+// Close the s3g input source, releasing any resources
+//
+// Call arguments:
+//
+//   s3g_context_t *ctx
+//     Context obtained by calling s3g_open().
+//
+//  Return values:
+//
+//    0 -- Success
+//   -1 -- Close error; check errno
+
+int s3g_close(s3g_context_t *ctx);
+
+#ifndef S3G_PRIVATE_H_
+typedef ssize_t s3g_write_proc_t(void *ctx, unsigned char *buf, size_t nbytes);
+#endif
+
+int s3g_add_writer(s3g_context_t *ctx, s3g_write_proc_t *wproc, void *wctx);
+void s3g_command_display(s3g_context_t *ctx, s3g_command_t *cmd);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

@@ -1,0 +1,65 @@
+>>> part
+
+AVR Part                      : ATMEGA328P
+Chip Erase delay              : 9000 us
+PAGEL                         : PD7
+BS2                           : PC2
+RESET disposition             : dedicated
+RETRY pulse                   : SCK
+serial program mode           : yes
+parallel program mode         : yes
+Timeout                       : 200
+StabDelay                     : 100
+CmdexeDelay                   : 25
+SyncLoops                     : 32
+ByteDelay                     : 0
+PollIndex                     : 3
+PollValue                     : 0x53
+Memory Detail                 :
+
+Block Poll               Page                       Polled
+32768  128    256  4500  4500 0xff 0xff
+lfuse          0     0     0    0 no          1    0      0  4500  4500 0x00 0x00
+hfuse          0     0     0    0 no          1    0      0  4500  4500 0x00 0x00
+efuse          0     0     0    0 no          1    0      0  4500  4500 0x00 0x00
+lock           0     0     0    0 no          1    0      0  4500  4500 0x00 0x00
+calibration    0     0     0    0 no          1    0      0     0     0 0x00 0x00
+signature      0     0     0    0 no          3    0      0     0     0 0x00 0x00
+
+avrdude> dump eeprom
+>>> dump eeprom
+0000  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+0010  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+0020  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+0030  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+
+avrdude> dump flash
+>>> dump flash
+0000  0c 94 37 00 0c 94 5f 00  0c 94 5f 00 0c 94 5f 00  | .7. ._. ._. ._.|
+0010  0c 94 5f 00 0c 94 5f 00  0c 94 5f 00 0c 94 5f 00  | ._. ._. ._. ._.|
+0020  0c 94 5f 00 0c 94 5f 00  0c 94 5f 00 0c 94 5f 00  | ._. ._. ._. ._.|
+0030  0c 94 5f 00 0c 94 5f 00  0c 94 5f 00 0c 94 5f 00  | ._. ._. ._. ._.|
+
+avrdude> dump lfuse
+>>> dump lfuse
+0000  ff                                                |.               |
+
+avrdude> dump hfuse
+>>> dump hfuse
+0000  de                                                |.               |
+
+avrdude> dump efuse
+>>> dump efuse
+0000  05                                                |.               |
+
+avrdude> dump lock
+>>> dump lock
+0000  3f                                                |?               |
+
+avrdude> dump calibration
+>>> dump calibration
+0000  8e                                                |.               |
+
+>>> dump signature
+0000  1e 95 0f                                          |...             |
+

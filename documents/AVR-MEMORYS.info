@@ -1,0 +1,113 @@
+Atmega640/1280/1281/2560/2561
+===================================================================================================
+Program Memory - 32K/64K/128K
+    On-chip In-System Reprogramable flash memory for program storage. 
+    For software security,the Flash Program memory space if divided into two sections,
+    Boot Program section and Application Program section.
+    The Flash Memory has an endrurance of at least 10000 writee/erase cycles.
+    Atmega640:      0 ~ 7FFF
+    Atmega1280:     0 ~ FFFF
+    Atmega2560:     0 ~ 1FFFF
+Data Memory - 8K(-64K)
+    32 Registers:                   0 ~ 1F
+    64 I/O Registers:              20 ~ 5F
+    416 External I/O Registers:    60 ~ 1FF
+    Internal SRAM(8192*8):        200 ~ 21FF 
+    External SRAM(0-64K*8):      2200 ~ FFFF
+EEPROM Memory
+    4KB EEPROM memory
+
+
+
+
+Memory Configuration
+===================================================================================================
+Name             Origin             Length             Attributes
+text             0x0000000000000000 0x0000000000100000 xr
+data             0x0000000000800200 0x000000000000fe00 rw !x
+eeprom           0x0000000000810000 0x0000000000010000 rw !x
+fuse             0x0000000000820000 0x0000000000000400 rw !x
+lock             0x0000000000830000 0x0000000000000400 rw !x
+signature        0x0000000000840000 0x0000000000000400 rw !x
+*default*        0x0000000000000000 0xffffffffffffffff
+---------------------------------------------------------------------------------------------------
+.text           0x0000000000000000    0x18f1a
+                0x0000000000018f1a                _etext = .
+.data           0x0000000000800200      0x2de load address 0x0000000000018f1a
+                0x0000000000800200                PROVIDE (__data_start, .)
+                0x00000000008004de                _edata = .
+                0x00000000008004de                PROVIDE (__data_end, .)
+.bss            0x00000000008004de     0x150a
+                0x00000000008004de                PROVIDE (__bss_start, .)
+                0x00000000008019e8                PROVIDE (__bss_end, .)
+                0x00000000008019e8                PROVIDE (__noinit_start, .)
+                0x00000000008019e8                PROVIDE (__noinit_end, .)
+                0x00000000008019e8                _end = .
+                0x00000000008019e8                PROVIDE (__heap_start, .)
+.eeprom         0x0000000000810000        0x0
+                0x0000000000810000                __eeprom_end = .
+
+
+Example
+===================================================================================================
+DATA SECTION
+---------------------------------------------------------------------------------------------------
+ .data          0x0000000000800202       0x22 build/mighty_one-2560/MightyBoard/Motherboard/EepromMap.o
+ .data          0x0000000000800224      0x100 /usr/lib/gcc/avr/4.5.3/avr6/libgcc.a(_clz.o)
+                0x0000000000800329       0xaf build/mighty_one-2560/MightyBoard/Motherboard/StepperAxis.o
+total size:     0x2de/[38 times]
+counted size:   0x1d1/[3 times](63.3514986376022%/7.89473684210526)
+
+BSS SECTION
+---------------------------------------------------------------------------------------------------
+                0x00000000008004e1      0x200 build/mighty_one-2560/MightyBoard/Motherboard/Command.o               //512字节大小的缓冲区
+                0x000000000080081a      0x292 build/mighty_one-2560/MightyBoard/Motherboard/Motherboard.o           //motherboard
+                0x0000000000800ad6       0x25 build/mighty_one-2560/MightyBoard/Motherboard/SoftI2cManager.o
+                0x0000000000800bf4      0x6a0 build/mighty_one-2560/MightyBoard/Motherboard/StepperAccelPlanner.o   //16条block buffer
+                0x00000000008012b4       0xcd build/mighty_one-2560/MightyBoard/Motherboard/StepperAxis.o           //5个步进轴
+                0x00000000008013a8       0x37 build/mighty_one-2560/MightyBoard/Motherboard/Steppers.o
+                0x000000000080145d       0x72 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x00000000008014cf       0x40 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x000000000080150f       0x32 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x0000000000801569      0x200 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/sd_raw.o         //raw_block 512字节
+                0x00000000008017a4       0x8d build/mighty_one-2560/MightyBoard/shared/UART.o                       //host UART
+                0x0000000000801831       0x8d build/mighty_one-2560/MightyBoard/shared/UART.o                       //Slave UART
+                0x00000000008018d9       0x50 build/mighty_one-2560/MightyBoard/Motherboard/Piezo.o
+ .bss._ZL4info  0x0000000000801991       0x40 build/mighty_one-2560/MightyBoard/shared/InterfaceBoard.o
+total size:     0x150a/[220 times]
+counted size:   0x10e9/[14 times](80.3750464166357%/6.36363636363636)
+
+
+HEX格式
+===================================================================================================
+:ll aaaa tt [dd...]                          cc
+:10 909A 00 010007010B010901060A010000000000 96
+:10 90AA 00 00002200200003210022002000042100 E9
+---------------------------------------------------------------------------------------------------
+:       每个Intel HEX记录都由冒号开头.
+ll      是数据长度域，它代表记录当中数据字节（dd...）的数量.
+aaaa    是地址域，它代表记录当中数据的起始地址.
+tt      是代表HEX记录类型的域，它可能是以下数据当中的一个：
+        00 – 数据记录
+        01 – 文件结束记录
+        02 – 扩展段地址记录
+        04 – 扩展线性地址记录
+dd      是数据域，它代表一个字节的数据.一个记录可以有许多数据字节.记录当中数据字节的数量必须和数据长度域（ll）中指定的数字相符.
+cc      是校验和域，它表示这个记录的校验和.校验和的计算是通过将记录当中所有十六进制编码数字对的值相加，以256为模进行以下补足.
+---------------------------------------------------------------------------------------------------
+:10 0000 00 0C94B2070C94ED070C94ED070C94ED07 DB         //code segment START
+:10 FFF0 00 63960FB6F894DEBF0FBECDBFCF91DF91 F1
+:02 0000 02 1000                             EC
+:10 0000 00 1F910F91FF90EF90DF90CF90BF90AF90 36
+                                                        //code segment SIZE = 0x1000 + 0x8F1A = 0x18F1A = 102170 Byte
+:0A 8F10 00 272F0C9471C7F894FFCF             CF         //code segment END
+:10 8F1A 00 2F00536D6172742D490041627300506C C9         //data segment START
+                                                        //data segment SIZE = 0x91EA + 0x0E - 0x8F1A = 0x2DE = 734 Byte
+:0E 91EA 00 000000002FC10000100008001800     57         //data segment END
+:00 0000 01 FF                                          //file END
+---------------------------------------------------------------------------------------------------
+                        ATMEGA1280          ATMEGA2560              存储器类型
+代码段:                 100/128             100/256                 ROM
+已初始化数据段:         0.7/8               0.7/8                   ROM/RAM
+未初始化数据段:         5.3/8               5.3/8                   RAM
+堆栈:                   2/8                 2/8                     RAM

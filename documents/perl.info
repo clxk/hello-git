@@ -1,0 +1,27 @@
+
+DATA SECTION
+---------------------------------------------------------------------------------------------------
+ .data          0x0000000000800202       0x22 build/mighty_one-2560/MightyBoard/Motherboard/EepromMap.o
+ .data          0x0000000000800224      0x100 /usr/lib/gcc/avr/4.5.3/avr6/libgcc.a(_clz.o)
+                0x0000000000800329       0xaf build/mighty_one-2560/MightyBoard/Motherboard/StepperAxis.o
+total size:     0x2de/[38 times]
+counted size:   0x1d1/[3 times](63.3514986376022%/7.89473684210526)
+
+BSS SECTION
+---------------------------------------------------------------------------------------------------
+                0x00000000008004e1      0x200 build/mighty_one-2560/MightyBoard/Motherboard/Command.o
+                0x000000000080081a      0x292 build/mighty_one-2560/MightyBoard/Motherboard/Motherboard.o
+                0x0000000000800ad6       0x25 build/mighty_one-2560/MightyBoard/Motherboard/SoftI2cManager.o
+                0x0000000000800bf4      0x6a0 build/mighty_one-2560/MightyBoard/Motherboard/StepperAccelPlanner.o
+                0x00000000008012b4       0xcd build/mighty_one-2560/MightyBoard/Motherboard/StepperAxis.o
+                0x00000000008013a8       0x37 build/mighty_one-2560/MightyBoard/Motherboard/Steppers.o
+                0x000000000080145d       0x72 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x00000000008014cf       0x40 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x000000000080150f       0x32 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/fat.o
+                0x0000000000801569      0x200 build/mighty_one-2560/MightyBoard/Motherboard/lib_sd/sd_raw.o
+                0x00000000008017a4       0x8d build/mighty_one-2560/MightyBoard/shared/UART.o
+                0x0000000000801831       0x8d build/mighty_one-2560/MightyBoard/shared/UART.o
+                0x00000000008018d9       0x50 build/mighty_one-2560/MightyBoard/Motherboard/Piezo.o
+ .bss._ZL4info  0x0000000000801991       0x40 build/mighty_one-2560/MightyBoard/shared/InterfaceBoard.o
+total size:     0x150a/[220 times]
+counted size:   0x10e9/[14 times](80.3750464166357%/6.36363636363636)

@@ -1,0 +1,104 @@
+srcs =  Glob('*.cc') + 
+        Glob('Motherboard/*.cc') + 
+        Glob('Motherboard/lib_sd/*.c') + 
+        Glob('Motherboard/boards/%s/*.cc' % platform) + 
+        Glob('shared/*.cc')
+
+        G3Firmware/firmware/src/*.cc
+        G3Firmware/firmware/src/Motherboard/*.cc
+        G3Firmware/firmware/src/Motherboard/lib_sd/*.c
+        G3Firmware/firmware/src/Motherboard/boards/%platform%/*.cc
+        ├── boards
+        │   ├── mb24
+        │   │   ├── ButtonArray.cc              目标板-键盘
+        │   │   ├── Configuration.hh            目标板-PIN MAP配置
+        │   │   ├── Motherboard.cc              目标板-Motherboard模块(Motherboard Class&Object Define)
+        │   │   └── Motherboard.hh
+        │   └── rrmbv12
+        │       ├── Configuration.hh
+        │       ├── Motherboard.cc
+        │       └── Motherboard.hh
+        ├── lib_sd
+        │   ├── byteordering.c
+        │   ├── byteordering.h
+        │   ├── ChangeLog
+        │   ├── fat.c
+        │   ├── fat_config.h
+        │   ├── fat.h
+        │   ├── partition.c
+        │   ├── partition_config.h
+        │   ├── partition.h
+        │   ├── README.txt
+        │   ├── sd_raw.c
+        │   ├── sd_raw_config.h
+        │   ├── sd_raw.h
+        │   └── sd-reader_config.h
+        ├── Command.cc                          可执行命令对象，处理来自串口以及SD卡的命令序列
+        ├── Command.hh
+        ├── DebugPacketProcessor.cc             识别并处理调试类数据包
+        ├── DebugPacketProcessor.hh
+        ├── EepromMap.cc                        EEPROM恢复出场设置
+        ├── EepromMap.hh
+        ├── Errors.hh                           错误码定义
+        ├── Host.cc                             主机交互处理模块
+        ├── Host.hh
+        ├── Main.cc                             程序入口
+        ├── Main.hh
+        ├── Point.cc                            每个维度上的坐标点对象
+        ├── Point.hh
+        ├── SDCard.cc                           SD卡接口(lib_sd)，提供简单的功能用于显示目录内容、文件访问等.
+        ├── SDCard.hh
+        ├── Steppers.cc                         步进电机子系统模块
+        ├── Steppers.hh
+        ├── Tool.cc                             与Etruder Driver交互的模块
+        ├── Tool.hh
+        └── Version.hh                          版本控制
+        G3Firmware/firmware/src/shared/*.cc
+        ├── AnalogPin.cc            初始化硬件引脚为模拟模式以及模拟引脚的读取功能
+        ├── AnalogPin.hh
+        ├── AvrPort.cc              AVR微控制器8位数字输入输出引脚模块(class)
+        ├── AvrPort.hh
+        ├── ButtonArray.hh          按键管理模块
+        ├── CircularBuffer.hh       实现了一个简单的循环队列
+        ├── Commands.hh             一些内部命令的定义
+        ├── CoolingFan.cc           冷却风扇控制模块
+        ├── CoolingFan.hh
+        ├── Eeprom.cc               EEPROM访问接口
+        ├── Eeprom.hh
+        ├── Heater.cc               加热器管理模块
+        ├── Heater.hh
+        ├── HeatingElement.hh
+        ├── InterfaceBoard.cc       加热控制接口
+        ├── InterfaceBoard.hh
+        ├── Interface.cc            显示屏管理模块
+        ├── Interface.hh
+        ├── LiquidCrystal.cc        液晶显示器驱动模块
+        ├── LiquidCrystal.hh
+        ├── Menu.cc                 屏幕显示与菜单
+        ├── Menu.hh
+        ├── Packet.cc               数据包与通信模块
+        ├── Packet.hh
+        ├── PID.cc                  PID控制模块
+        ├── PID.hh
+        ├── Pin.cc                  在AvrPort的基础上进行进一步的数据结构封装
+        ├── Pin.hh
+        ├── ProtocolDocumentation.hh串口命令传输协议
+        ├── PSU.cc                  PSU
+        ├── PSU.hh
+        ├── StepperAxis.cc          单轴步进电机驱动，使用步进电机的namespace来访问，通过StepperInterface与实际硬件进行交互
+        ├── StepperAxis.hh
+        ├── StepperInterface.cc     实际驱动步进电机的模块
+        ├── StepperInterface.hh
+        ├── TemperatureSensor.hh    温度传感器接口模块
+        ├── Thermistor.cc           热敏电阻驱动模块，从连接在模拟引脚上的热敏电阻读取模拟值并转换成正确的温度值(摄氏度)
+        ├── Thermistor.hh
+        ├── ThermistorTable.cc      将热敏电阻的读数转换为温度值，使用指定的查找表
+        ├── ThermistorTable.hh
+        ├── Thermocouple.cc
+        ├── Thermocouple.hh
+        ├── Timeout.cc              定时器模块(倒计时)
+        ├── Timeout.hh
+        ├── Types.hh                数据类型声明
+        ├── UART.cc                 串口通信模块
+        └── UART.hh
+
