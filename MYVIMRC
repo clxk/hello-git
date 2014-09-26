@@ -88,7 +88,7 @@ nnoremap <leader>n              :set number!<cr>
 nnoremap <leader>w              :set wrap!<cr>
 nnoremap <leader>l              :set list!<cr>
 nnoremap <leader>tt             :Tlist<cr>
-nnoremap tt                     <c-w>w:q<cr>
+nnoremap tt                     <c-w><left>:q<cr>
 nnoremap <leader>ls             :!grep -n --color "<cword>" "%"<cr>
 nnoremap <leader>ll             :!grep -rn --color "<cword>" "%:h" <cr>
 " insert 模式下的映射
@@ -103,6 +103,13 @@ vnoremap <c-x>                  :w >>~/Desktop/.tmp<cr>:e ~/Desktop/.tmp<cr>G
 nnoremap <leader>ff             :CommandT<cr>
 nnoremap ff                     :CommandTBuffer<cr>
 " winmanager
+nnoremap <c-h>                  <c-w>h
+nnoremap <c-l>                  <c-w>l
+nnoremap <c-j>                  <c-w>j
+nnoremap <c-k>                  <c-w>k
+" psmouse
+nnoremap 11                     :! sudo modprobe -r psmouse<cr>
+nnoremap 22                     :! sudo modprobe    psmouse<cr>
 
 " 缩写
 " =================================================================================================
@@ -173,5 +180,6 @@ set path+=/usr/src/linux-headers-3.8.0-34/arch/avr32/**
 "=================================================================================================== 
 set nocompatible
 set backspace=indent,eol,start
-let &termencoding=&encoding
-set fileencodings=gb2312,ucs-bom,gbk,utf-8
+set encoding=utf-8 
+set fileencoding=utf-8 
+set fileencodings=utf-8,cp936,gb18030,gbk,gb2312,utf-8,ucs-bom,latin-1 
