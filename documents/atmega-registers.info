@@ -1,0 +1,102 @@
+DDRA                – Port A Data Direction
+DDRB                – Port B Data Direction
+DDRC                – Port C Data Direction
+DDRD                – Port D Data Direction
+DDRE                – Port E Data Direction
+DDRF                – Port F Data Direction
+DDRG                – Port G Data Direction
+DDRH                – Port H Data Direction
+DDRJ                – Port J Data Direction
+DDRK                – Port K Data Direction
+DDRL                – Port L Data Direction
+***************************************************************************************************
+EEARH and EEARL     – The EEPROM Address Register
+EEDR                – The EEPROM Data Register
+EECR                – The EEPROM Control Register
+---------------------------------------------------------------------------------------------------
+GPIOR2              – General Purpose I/O Register 2
+GPIOR1              – General Purpose I/O Register 1
+GPIOR0              – General Purpose I/O Register 0
+---------------------------------------------------------------------------------------------------
+XMCRA               – External Memory Control Register A
+XMCRB               – External Memory Control Register B
+---------------------------------------------------------------------------------------------------
+CLKPR               – Clock Prescale Register
+SMCR                – Sleep Mode Control Register
+PRR0                – Power Reduction Register 0
+PRR1                – Power Reduction Register 1
+WDTCSR              – Watchdog Timer Control Register
+MCUCR               – MCU Control Register
+---------------------------------------------------------------------------------------------------
+EICRA               – External Interrupt Control Register A
+EICRB               – External Interrupt Control Register B
+EIFR                – External Interrupt Flag Register
+---------------------------------------------------------------------------------------------------
+PCICR               – Pin Change Interrupt Control Register
+PCIFR               – Pin Change Interrupt Flag Register
+---------------------------------------------------------------------------------------------------
+TCCR0A              – Timer/Counter Control Register A
+TCCR0B              – Timer/Counter Control Register B
+OCR0A               – Output Compare Register A
+OCR0B               – Output Compare Register B
+TIFR0               – Timer/Counter 0 Interrupt Flag Register
+TCCR1A              – Timer/Counter 1 Control Register A
+TCCR3A              – Timer/Counter 3 Control Register A
+TCCR4A              – Timer/Counter 4 Control Register A
+TCCR5A              – Timer/Counter 5 Control Register A
+TCCR1B              – Timer/Counter 1 Control Register B
+TCCR3B              – Timer/Counter 3 Control Register B
+TCCR4B              – Timer/Counter 4 Control Register B
+TCCR5B              – Timer/Counter 5 Control Register B
+TCCR1C              – Timer/Counter 1 Control Register C
+TCCR3C              – Timer/Counter 3 Control Register C
+TCCR4C              – Timer/Counter 4 Control Register C
+TCCR5C              – Timer/Counter 5 Control Register C
+ICR1H and ICR1L     – Input Capture Register 1
+ICR3H and ICR3L     – Input Capture Register 3
+ICR4H and ICR4L     – Input Capture Register 4
+ICR5H and ICR5L     – Input Capture Register 5
+TIFR1               – Timer/Counter1 Interrupt Flag Register
+TIFR3               – Timer/Counter3 Interrupt Flag Register
+TIFR4               – Timer/Counter4 Interrupt Flag Register
+TIFR5               – Timer/Counter5 Interrupt Flag Register
+GTCCR               – General Timer/Counter Control Register
+TCCR2B              – Timer/Counter Control Register B
+OCR2A               – Output Compare Register A
+OCR2B               – Output Compare Register B
+TIFR2               – Timer/Counter2 Interrupt Flag Register
+ASSR                – Asynchronous Status Register
+---------------------------------------------------------------------------------------------------
+SPCR                – SPI Control Register
+SPSR                – SPI Status Register
+SPDR                – SPI Data Register
+---------------------------------------------------------------------------------------------------
+UDRn                – USART I/O Data Register n
+UCSRnA              – USART Control and Status Register A
+UCSRnB              – USART Control and Status Register B
+UCSRnC              – USART Control and Status Register C
+UDRn                – USART MSPIM I/O Data Register
+UCSRnA              – USART MSPIM Control and Status Register n A
+UCSRnB              – USART MSPIM Control and Status Register n B
+UCSRnC              – USART MSPIM Control and Status Register n C
+UBRRnL and UBRRnH   – USART Baud Rate Registers
+---------------------------------------------------------------------------------------------------
+TWBR                – TWI Bit Rate Register
+TWCR                – TWI Control Register
+TWSR                – TWI Status Register
+TWDR                – TWI Data Register
+TWAR                – TWI (Slave) Address Register
+TWAMR               – TWI (Slave) Address Mask Register
+---------------------------------------------------------------------------------------------------
+ADCSRB              – ADC Control and Status Register B
+ACSR                – Analog Comparator Control and Status Register
+DIDR1               – Digital Input Disable Register 1
+ADCSRB              – ADC Control and Status Register B
+ADCSRA              – ADC Control and Status Register A
+ADCSRB              – ADC Control and Status Register B
+DIDR0               – Digital Input Disable Register 0
+DIDR2               – Digital Input Disable Register 2
+---------------------------------------------------------------------------------------------------
+OCDR                – On-chip Debug Register
+MCUSR               – MCU Status Register
+SPMCSR              – Store Program Memory Control and Status Register

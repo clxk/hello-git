@@ -1,0 +1,36 @@
+speed & direction Controll
+===================================================================================================
+    - PWM control signals
+
+
+Absolute Maximum Ratings
+===================================================================================================
+    Load Supply Voltage             Vbb             40v
+    Logic Input Voltage Range       Vin             -0.3 to 6v
+    Vref Input Voltage Range        Vref            -0.3 to 6v
+    Sense Voltage(LSSx pin)         Vs              -0.5 to 0.5v
+    Motor Outputs Voltage           Vout            -2 to 42v
+    Output Current                  Iout            2A
+    Transient Output Current        iout            5A
+    Operating Temperature Range     Ta              -40 to 85
+    Maximum Junction Temperature    Tj              150
+    Storage Temperature Range       Tstg            -55 to 150
+Pin-out Diagram
+===================================================================================================
+    1       GND         Ground
+    2       Vref34      Analog input for bridge 3-4
+    3       IN3         Logic input 3
+    4       IN4         Logic input 4
+    5       IN2         Logic input 2
+    6       IN1         Logic input 1
+    7       Vref12      Analog input for bridge 1-2
+    8       GND         Ground
+    9       VBB         Load supply voltage
+    10      OUT1        DMOS full bridge output 1
+    11      LSS12       Power return - sense resistor connection for bridge 1-2
+    12      OUT2        DMOS full bridge output 2
+    13      OUT3        DMOS full bridge output 3
+    14      LSS34       Power return - sense resistor connection for bridge 3-4
+    15      OUT4        DMOS full bridge output 4
+    16      VBB         load supply voltage
+    -       PAD         Exposed pad for enhanced thermal dissipation
