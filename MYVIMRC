@@ -89,8 +89,8 @@ nnoremap <leader>w              :set wrap!<cr>
 nnoremap <leader>l              :set list!<cr>
 nnoremap <leader>tt             :Tlist<cr>
 nnoremap tt                     <c-w><left>:q<cr>
-nnoremap <leader>ls             :!grep -n --color "<cword>" "%"<cr>
-nnoremap <leader>ll             :!grep -rn --color "<cword>" "%:h" <cr>
+nnoremap <leader>ls             :!echo "%" && grep -n --color "<cword>" "%"<cr>
+nnoremap <leader>ll             :!echo "`pwd`/src" && grep -rn --color "<cword>" "`pwd`/src" <cr>
 " insert 模式下的映射
 inoremap <c-d>                  <esc>ddi
 inoremap <c-u>                  <esc>viwUA
@@ -98,7 +98,7 @@ inoremap <silent> jk            <esc>
 " view 模式下的映射
 vnoremap c                      :s#^#//#<cr>:noh<cr>
 vnoremap C                      :s#^//##<cr>:noh<cr>
-vnoremap <c-x>                  :w >>~/Desktop/.tmp<cr>:e ~/Desktop/.tmp<cr>G
+vnoremap <c-x>                  :w >>~/Desktop/.tmp<cr>:e ~/Desktop/.tmp<cr>G:w<cr>
 " Command-T
 nnoremap <leader>ff             :CommandT<cr>
 nnoremap ff                     :CommandTBuffer<cr>
@@ -172,8 +172,8 @@ nnoremap <leader>fh             8o<esc>8k:call FunctionHeader()<cr>
 " 自动切换工作目录
 " set autochdir
 set path=.
-set path+=~/Desktop/firmwares/Sailfish-MihtyBoardFirmware/firmware/**
-set path+=/usr/src/linux-headers-3.8.0-34/arch/avr32/**
+set path+=/home/clxk/AAA/firmwarePrj/firmware/src/**
+set path+=/usr/src/linux-headers-3.13.0-37/arch/avr32/**
 
 
 " Configs
